@@ -3,6 +3,7 @@
 
 #include "glow/Backend/Backend.h"
 #include "DummyFunction.h"
+#include "MetaWareNNDeviceManager.h"
 
 using namespace glow;
 
@@ -15,6 +16,8 @@ public:
   std::string getBackendName() const override { return getName(); }
   static std::string getName() { return "MetaWareNN"; }
   static unsigned numDevices();
+  runtime::DeviceManager *
+  createDeviceManager(const runtime::DeviceConfig &deviceConfig) override;
   Expected<std::unique_ptr<CompiledFunction>>
   compile(Function *F, const BackendOptions &opts) const override;
   bool isOpSupported(const NodeInfo &NI) const override;

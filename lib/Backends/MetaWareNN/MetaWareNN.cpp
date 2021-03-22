@@ -6,6 +6,11 @@ MetaWareNNBackend::MetaWareNNBackend() {
     LOG(INFO) << "MetaWareNNBackend constructor";
 }
 
+runtime::DeviceManager *
+MetaWareNNBackend::createDeviceManager(const runtime::DeviceConfig &deviceConfig) {
+  return createMetaWareNNDeviceManager(deviceConfig);
+}
+
 Expected<std::unique_ptr<CompiledFunction>>
 MetaWareNNBackend::compile(Function *F, const BackendOptions &opts) const
 {
