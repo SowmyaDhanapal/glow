@@ -9,6 +9,14 @@
 #include "op/node.h"
 #include "tensorflow/lite/schema/schema_generated.h"
 #include "glow/Graph/Utils.h"
+#include <boost/serialization/string.hpp>
+#include <boost/archive/text_oarchive.hpp>
+#include <boost/archive/text_iarchive.hpp>
+
+#include <boost/interprocess/shared_memory_object.hpp>
+#include <boost/interprocess/mapped_region.hpp>
+#include <boost/interprocess/streams/bufferstream.hpp>
+#include <boost/serialization/vector.hpp>
 
 namespace metawarenn {
 
@@ -124,6 +132,8 @@ class MWNNGraph {
     std::vector<MWNNNode> mwnn_nodes;
     std::vector<MWNNValueInfo> mwnn_inputs;
     std::vector<MWNNValueInfo> mwnn_outputs;
+    friend class boost::serialization::access;
+    template <typename Ar> void serialize(Ar& ar, unsigned) { ar & name & ip_name & op_name & mwnn_nodes & mwnn_initializer_tensors & mwnn_inputs & mwnn_outputs; }
 };
 
 } //namespace metawarenn

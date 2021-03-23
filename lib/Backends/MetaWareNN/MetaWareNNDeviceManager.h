@@ -3,11 +3,20 @@
 
 #include "glow/Backends/DeviceManager.h"
 #include "metawarenn_lib/metawarenn_graph.h"
+#include "metawarenn_lib/metawarenn_utils.h"
 #include "glow/Graph/Utils.h"
 
 #include "metawarenn_lib/optimizer/pass_manager.h"
 #include "metawarenn_lib/optimizer/metawarenn_optimizer.h"
 #include "metawarenn_lib/metawarenn_utils.h"
+
+#include <boost/serialization/string.hpp>
+#include <boost/archive/text_oarchive.hpp>
+#include <boost/archive/text_iarchive.hpp>
+
+#include <boost/interprocess/shared_memory_object.hpp>
+#include <boost/interprocess/mapped_region.hpp>
+#include <boost/interprocess/streams/bufferstream.hpp>
 
 #define CHW_TO_HWC 1
 
@@ -32,9 +41,6 @@ public:
   uint64_t getMaximumMemory() const override;
   uint64_t getAvailableMemory() const override;
   bool isMemoryAvailable(uint64_t estimate) const override;
-
-private:
-  MWNNGraph mwnn_graph_;
 };
   glow::runtime::DeviceManager *createMetaWareNNDeviceManager(const glow::runtime::DeviceConfig &config);
 }

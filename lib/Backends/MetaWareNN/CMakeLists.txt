@@ -36,6 +36,8 @@ add_library(MetaWareNN
 
 target_link_libraries(MetaWareNN
                       Backend
+                      -lboost_serialization
+                      -lrt
                       ${PROTOBUF_LIBRARY})
 
 set(linked_backends ${linked_backends} MetaWareNN PARENT_SCOPE)

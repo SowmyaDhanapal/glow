@@ -19,7 +19,20 @@ MetaWareNNDeviceManager::runFunction(std::string functionName,
                                  std::unique_ptr<ExecutionContext> ctx,
                                  runtime::ResultCBTy resultCB)
 {
+  //Inference Part
   LOG(INFO) << "runFunction!";
+  std::cout << "\nGetting graph from shared memory";
+  namespace bip = boost::interprocess;
+  bip::shared_memory_object shm(bip::open_only, "SharedMemoryFile", bip::read_only);
+  bip::mapped_region region(shm, bip::read_only);
+  bip::bufferstream bs(std::ios::in);
+  bs.buffer(reinterpret_cast<char*>(region.get_address()), region.get_size());
+  boost::archive::text_iarchive ia(bs);
+  MWNNGraph graph;
+  ia >> graph;
+  std::cout << "\nCalling convert_to_mwnn_format";
+  convert_to_mwnn_format(graph, CHW_TO_HWC);
+  bip::shared_memory_object::remove("SharedMemoryFile");
   exit(1);
 }
 
@@ -27,6 +40,13 @@ void MetaWareNNDeviceManager::addNetwork(const Module *module,
                                      glow::runtime::FunctionMapTy functions,
                                      glow::runtime::ReadyCBTy readyCB) {
   auto function = module->getFunctions().front();
+  namespace bip = boost::interprocess;
+  bip::shared_memory_object shm(bip::create_only, "SharedMemoryFile", bip::read_write);
+  shm.truncate(60u<<20); // 60MiB
+  bip::mapped_region region(shm, bip::read_write);
+  bip::bufferstream bs(std::ios::out);
+  bs.buffer(reinterpret_cast<char*>(region.get_address()), region.get_size());
+  boost::archive::text_oarchive oa(bs);
   MWNNGraph mwnn_graph(function); //Parse the GLOW Function to MWNNGraph
   optimizer::PassManager manager;
   if(CHW_TO_HWC)
@@ -58,7 +78,7 @@ void MetaWareNNDeviceManager::addNetwork(const Module *module,
     }
   }
   manager.run_passes();
-  mwnn_graph_ = mwnn_graph;
+  oa << mwnn_graph;
   readyCB(module, Error::success());
 }
 
