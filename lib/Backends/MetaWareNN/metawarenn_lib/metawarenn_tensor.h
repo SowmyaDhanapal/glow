@@ -18,6 +18,7 @@ class MWNNTensor {
     MWNNTensor() = default;
     MWNNTensor(TensorProto& onnx_tensor_proto);
     MWNNTensor(std::string m_name, std::vector<int> m_dims, int m_type, std::vector<float> m_tensor);
+    MWNNTensor(std::string m_name, std::vector<int> m_dims, ElemKind m_type, std::vector<float> m_tensor);
     void set_tensor();
     std::string get_name() { return name; }
     int get_type() { return in_type; }

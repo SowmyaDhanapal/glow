@@ -8,6 +8,7 @@
 #include "metawarenn_value_info.h"
 #include "op/node.h"
 #include "tensorflow/lite/schema/schema_generated.h"
+#include "glow/Graph/Utils.h"
 
 namespace metawarenn {
 
@@ -16,6 +17,7 @@ class MWNNGraph {
     MWNNGraph() = default;
     MWNNGraph(GraphProto& onnx_graph_proto, MWNNModel& model);
     MWNNGraph(TfLiteContext* context, std::vector<int> subgraph_nodes_);
+    MWNNGraph(Function *F);
     std::string get_name() { return name; }
     std::string get_graph_ip_name() { return ip_name; }
     std::string get_graph_op_name() { return op_name; }

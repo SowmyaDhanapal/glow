@@ -12,6 +12,7 @@ class MWNNValueInfo {
     MWNNValueInfo() = default;
     MWNNValueInfo(ValueInfoProto& onnx_value_info_proto);
     MWNNValueInfo(std::string m_name, std::vector<int> m_dims, int m_type);
+    MWNNValueInfo(std::string m_name, std::vector<int> m_dims, ElemKind m_type);
     std::string get_name() { return name; }
     int get_type() { return in_type; }
     std::vector<int> get_dims() { return dims; }

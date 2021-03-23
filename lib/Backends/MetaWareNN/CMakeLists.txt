@@ -25,10 +25,12 @@ add_library(MetaWareNN
             metawarenn_lib/op/relu.cc
             metawarenn_lib/op/reshape.cc
             metawarenn_lib/op/softmax.cc
+            metawarenn_lib/op/transpose.cc
             metawarenn_lib/optimizer/metawarenn_optimizer.cc
             metawarenn_lib/optimizer/remove_reshape.cc
             metawarenn_lib/optimizer/fuse_relu.cc
             metawarenn_lib/optimizer/convert_layout.cc
+            metawarenn_lib/optimizer/remove_transpose.cc
             metawarenn_lib/optimizer/pass_manager.cc
             metawarenn_lib/onnx/onnx-ml.pb.cc)
 

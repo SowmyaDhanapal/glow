@@ -10,6 +10,7 @@
 #include "op/softmax.h"
 #include "op/avg_pool.h"
 #include "op/depthwise_conv.h"
+#include "op/transpose.h"
 
 namespace metawarenn {
 

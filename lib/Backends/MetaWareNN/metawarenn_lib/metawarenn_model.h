@@ -15,7 +15,11 @@
 #include "tensorflow/lite/builtin_ops.h"
 #include "tensorflow/lite/c/builtin_op_data.h"
 
+//GLOW
+#include "glow/Graph/Graph.h"
+
 using namespace onnx;
+using namespace glow;
 
 namespace metawarenn {
 
