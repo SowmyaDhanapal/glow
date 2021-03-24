@@ -5,7 +5,7 @@
 
 #include "tensorflow/lite/c/common.h"
 
-#include "glow/Graph/Graph.h"
+#include "Glow/Graph/Graph.h"
 
 using namespace onnx;
 using namespace glow;

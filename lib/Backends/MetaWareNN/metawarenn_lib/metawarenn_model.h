@@ -16,7 +16,7 @@
 #include "tensorflow/lite/c/builtin_op_data.h"
 
 //GLOW
-#include "glow/Graph/Graph.h"
+#include "Glow/Graph/Graph.h"
 
 using namespace onnx;
 using namespace glow;

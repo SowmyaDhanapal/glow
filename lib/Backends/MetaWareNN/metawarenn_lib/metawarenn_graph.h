@@ -8,7 +8,7 @@
 #include "metawarenn_value_info.h"
 #include "op/node.h"
 #include "tensorflow/lite/schema/schema_generated.h"
-#include "glow/Graph/Utils.h"
+#include "Glow/Graph/Utils.h"
 #include <boost/serialization/string.hpp>
 #include <boost/archive/text_oarchive.hpp>
 #include <boost/archive/text_iarchive.hpp>

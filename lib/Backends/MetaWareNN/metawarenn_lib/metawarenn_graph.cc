@@ -368,7 +368,7 @@ MWNNGraph::MWNNGraph(Function *F) {
         }
         case Kinded::Kind::AvgPoolNodeKind:
         {
-            node_op_type = "AvgPool";
+            node_op_type = "GlobalAveragePool";
             auto *avgpool_node = llvm::cast<AvgPoolNode>(node);
             auto input_name = avgpool_node->getInput().generateNodeOutputName(true);
             node_inputs.emplace_back(input_name);
