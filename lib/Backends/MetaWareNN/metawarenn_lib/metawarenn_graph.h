@@ -44,7 +44,8 @@ class MWNNGraph {
     void remove_initializer_names(std::string name){
       std::cout << "\n mwnn_initializer_names size before: " << mwnn_initializer_names.size();
       auto it = mwnn_initializer_names.find(name);
-      mwnn_initializer_names.erase(it);
+      if(it != mwnn_initializer_names.end())
+        mwnn_initializer_names.erase(it);
       std::cout << "\n mwnn_initializer_names size after: " << mwnn_initializer_names.size();
     }
     void remove_initializer_tensor(std::string name){
