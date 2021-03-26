@@ -7,7 +7,6 @@ add_library(MetaWareNN
             MetaWareNNFactory.cpp
             DummyFunction.cpp
             MetaWareNNDeviceManager.cpp
-            metawarenn_lib/metawarenn_model.cc
             metawarenn_lib/metawarenn_graph.cc
             metawarenn_lib/metawarenn_tensor.cc
             metawarenn_lib/metawarenn_node.cc
