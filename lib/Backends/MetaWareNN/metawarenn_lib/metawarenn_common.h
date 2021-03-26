@@ -1,7 +1,7 @@
 #ifndef METAWARENN_COMMON_H_
 #define METAWARENN_COMMON_H_
 
-#define GLOW 0
+#define GLOW 1
 
 //ONNXRuntime
 #include "onnx/onnx-ml.pb.h"
