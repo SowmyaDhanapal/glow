@@ -41,6 +41,7 @@ void MetaWareNNDeviceManager::addNetwork(const Module *module,
                                      glow::runtime::ReadyCBTy readyCB) {
   auto function = module->getFunctions().front();
   namespace bip = boost::interprocess;
+  bip::shared_memory_object::remove("SharedMemoryFile");
   bip::shared_memory_object shm(bip::create_only, "SharedMemoryFile", bip::read_write);
   shm.truncate(60u<<20); // 60MiB
   bip::mapped_region region(shm, bip::read_write);

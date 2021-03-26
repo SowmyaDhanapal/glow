@@ -28,10 +28,12 @@ MWNNValueInfo::MWNNValueInfo(std::string m_name, std::vector<int> m_dims, int m_
   t_type = ElementType::get_mwnn_type_tf(in_type);
 }
 
+#if GLOW
 //GLOWConstructor
 MWNNValueInfo::MWNNValueInfo(std::string m_name, std::vector<int> m_dims, ElemKind m_type) {
   name = m_name;
   dims = m_dims;
   t_type = ElementType::get_mwnn_type_glow(m_type);
 }
+#endif
 } //namespace metawarenn

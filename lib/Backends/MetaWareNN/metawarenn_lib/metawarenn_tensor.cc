@@ -24,6 +24,7 @@ MWNNTensor::MWNNTensor(std::string m_name, std::vector<int> m_dims, int m_type, 
     for (auto& it : dims) { std::cout << it << ' '; }
 }
 
+#if GLOW
 //GlowConstructor
 MWNNTensor::MWNNTensor(std::string m_name, std::vector<int> m_dims, ElemKind m_type, std::vector<float> m_tensor) {
     name = m_name;
@@ -32,6 +33,7 @@ MWNNTensor::MWNNTensor(std::string m_name, std::vector<int> m_dims, ElemKind m_t
     tensor = m_tensor;
     for (auto& it : dims) { std::cout << it << ' '; }
 }
+#endif
 
 void MWNNTensor::set_tensor() {
   switch (in_type) {

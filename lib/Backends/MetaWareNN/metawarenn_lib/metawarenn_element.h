@@ -5,10 +5,7 @@
 
 #include "tensorflow/lite/c/common.h"
 
-#include "Glow/Graph/Graph.h"
-
 using namespace onnx;
-using namespace glow;
 
 namespace metawarenn {
 
@@ -100,7 +97,7 @@ class ElementType {
                 return element_type::dynamic_;
         }
     }
-
+    #if GLOW
     static element_type get_mwnn_type_glow(ElemKind glow_type) {
         switch (glow_type) {
             case ElemKind::BoolTy:
@@ -123,6 +120,7 @@ class ElementType {
                 return element_type::dynamic_;
         }
     }
+    #endif
 };
 
 enum ActivationType {

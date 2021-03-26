@@ -3,9 +3,8 @@
 namespace metawarenn {
 
 //ONNXConstructor
-MWNNGraph::MWNNGraph(GraphProto& onnx_graph_proto, MWNNModel& model) {
-  graph_proto = onnx_graph_proto;
-  mwnn_model = model;
+MWNNGraph::MWNNGraph(GraphProto& onnx_graph_proto) {
+  GraphProto graph_proto = onnx_graph_proto;
   name = graph_proto.name();
 
   for (auto tensor_proto : graph_proto.initializer()) {
@@ -258,7 +257,7 @@ MWNNGraph::MWNNGraph(TfLiteContext* context, std::vector<int> subgraph_nodes_) {
     mwnn_graph_nodes[mwnn_node.get_name()] = std::move(op_node);
   }
 }
-
+#if GLOW
 //GLOWConstructor
 MWNNGraph::MWNNGraph(Function *F) {
   name = std::string(F->getName());
@@ -470,5 +469,6 @@ MWNNGraph::MWNNGraph(Function *F) {
     }
   }
 }
+#endif
 
 } //namespace metawarenn
