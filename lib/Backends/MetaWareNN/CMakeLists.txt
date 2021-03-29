@@ -1,7 +1,3 @@
-include(FindProtobuf)
-find_package(Protobuf REQUIRED)
-include_directories(${PROTOBUF_INCLUDE_DIR})
-
 add_library(MetaWareNN
             MetaWareNN.cpp
             MetaWareNNFactory.cpp
@@ -30,13 +26,11 @@ add_library(MetaWareNN
             metawarenn_lib/optimizer/fuse_relu.cc
             metawarenn_lib/optimizer/convert_layout.cc
             metawarenn_lib/optimizer/remove_transpose.cc
-            metawarenn_lib/optimizer/pass_manager.cc
-            metawarenn_lib/onnx/onnx-ml.pb.cc)
+            metawarenn_lib/optimizer/pass_manager.cc)
 
 target_link_libraries(MetaWareNN
                       Backend
                       -lboost_serialization
-                      -lrt
-                      ${PROTOBUF_LIBRARY})
+                      -lrt)
 
 set(linked_backends ${linked_backends} MetaWareNN PARENT_SCOPE)
