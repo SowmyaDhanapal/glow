@@ -56,3 +56,9 @@
 * `Download the model at https://github.com/onnx/models/blob/master/vision/classification/mobilenet/model/mobilenetv2-7.onnx`
 * `cd /path/to/glow/build_Release/bin`
 * `./image-classifier ../../tests/images/imagenet/cat_285.png -image-mode=0to1 -m=/path/to/mobilenetv2-7.onnx -model-input-name=data -cpu-memory=100000 -backend=MetaWareNN`
+
+### To Run Standalone Inference using MetaWareNN Backend
+* `cd /path/to/glow/lib/Backends/MetaWareNN/Inference`
+* Download GLOW libraries from this link -> https://multicorewareinc.egnyte.com/dl/ffpW2aAaUm/? and place it in /path/to/glow/lib/Backends/MetaWareNN/Inference folder
+* `sh run_inference.sh`
+* `./inference ../../../../tests/images/imagenet/cat_285.png -m=/path/to/mobilenetv2-7.onnx -model-input-name=data -backend=MetaWareNN`
