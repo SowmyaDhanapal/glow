@@ -26,11 +26,13 @@ add_library(MetaWareNN
             metawarenn_lib/optimizer/fuse_relu.cc
             metawarenn_lib/optimizer/convert_layout.cc
             metawarenn_lib/optimizer/remove_transpose.cc
-            metawarenn_lib/optimizer/pass_manager.cc)
-
+            metawarenn_lib/optimizer/pass_manager.cc
+            metawarenn_lib/mwnnconvert/mwnn_protobuf/cpp_wrapper/MWNN.pb.cc)
+set(PROTOBUF_LIB "${CMAKE_CURRENT_SOURCE_DIR}/libprotobuf.so")
 target_link_libraries(MetaWareNN
                       Backend
                       -lboost_serialization
-                      -lrt)
+                      -lrt
+                      ${PROTOBUF_LIB})
 
 set(linked_backends ${linked_backends} MetaWareNN PARENT_SCOPE)

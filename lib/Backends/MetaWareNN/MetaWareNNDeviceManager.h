@@ -18,7 +18,11 @@
 #include <boost/interprocess/mapped_region.hpp>
 #include <boost/interprocess/streams/bufferstream.hpp>
 
-#define CHW_TO_HWC 1
+#include "metawarenn_lib/mwnnconvert/mwnn_protobuf/cpp_wrapper/MWNN.pb.h"
+
+#define CHW_TO_HWC 0
+#define HWC_TO_CHW 1
+#define INVOKE_NNAC 1
 
 using namespace glow;
 

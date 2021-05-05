@@ -352,6 +352,8 @@ MWNNGraph::MWNNGraph(Function *F) {
             node_attributes.emplace_back(mwnn_attr_group);
             metawarenn::MWNNAttribute mwnn_attribute("activation", {0});
             node_attributes.emplace_back(mwnn_attribute);
+            metawarenn::MWNNAttribute mwnn_attr_kernel_shape("kernel_shape", {(int)filterDims.h, (int)filterDims.w});
+            node_attributes.emplace_back(mwnn_attr_kernel_shape);
             auto output_name = conv_node->getResult().generateNodeOutputName(true);
             node_outputs.emplace_back(output_name);
             LOG(INFO) << "output_name: " << output_name;
@@ -455,10 +457,12 @@ MWNNGraph::MWNNGraph(Function *F) {
     auto data_type = v->getType()->getElementType();
     int size = glow_dims.size();
     std::vector<int> dims(size);
-    for(int i = 0; i < size; i++)
-    {
-      dims[i] = int(glow_dims[i]);
-    }
+    // Input dims from NCHW to NHWC
+    dims[1] = int(glow_dims[3]);
+    dims[3] = int(glow_dims[1]);
+    dims[2] = int(glow_dims[2]);
+    dims[0] = int(glow_dims[0]);
+
     if(v->getName().equals(input_name))
     {
       metawarenn::MWNNValueInfo mwnn_input(input_name, dims, data_type);
@@ -467,7 +471,7 @@ MWNNGraph::MWNNGraph(Function *F) {
     }
     else
     {
-      metawarenn::MWNNValueInfo mwnn_output(input_name, dims, data_type);
+      metawarenn::MWNNValueInfo mwnn_output(output_name, dims, data_type);
       mwnn_outputs.emplace_back(mwnn_output);
       mwnn_initializer_names.insert(output_name);
     }
