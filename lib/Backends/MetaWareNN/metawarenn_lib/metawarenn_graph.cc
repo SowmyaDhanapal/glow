@@ -268,8 +268,9 @@ MWNNGraph::MWNNGraph(Function *F) {
   LOG(INFO) << "Function name: " << name;
   GraphPostOrderVisitor visitor(*F);
   auto node_list = visitor.getPostOrder();
+  auto global_output_name = "";
   for (auto *node : node_list) {
-      LOG(INFO) << "==============================================================================================================";
+      //LOG(INFO) << "==============================================================================================================";
       std::string node_name;
       std::string node_op_type;
       std::vector<std::string> node_inputs;
@@ -365,10 +366,10 @@ MWNNGraph::MWNNGraph(Function *F) {
             auto *relu_node = llvm::cast<ReluNode>(node);
             auto input_name = relu_node->getInput().generateNodeOutputName(true);
             node_inputs.emplace_back(input_name);
-            LOG(INFO) << "input_name: " << input_name;
+            //LOG(INFO) << "input_name: " << input_name;
             auto output_name = relu_node->getResult().generateNodeOutputName(true);
             node_outputs.emplace_back(output_name);
-            LOG(INFO) << "output_name: " << output_name;
+            //LOG(INFO) << "output_name: " << output_name;
             break;
         }
         case Kinded::Kind::AvgPoolNodeKind:
@@ -377,10 +378,10 @@ MWNNGraph::MWNNGraph(Function *F) {
             auto *avgpool_node = llvm::cast<AvgPoolNode>(node);
             auto input_name = avgpool_node->getInput().generateNodeOutputName(true);
             node_inputs.emplace_back(input_name);
-            LOG(INFO) << "input_name: " << input_name;
+            //LOG(INFO) << "input_name: " << input_name;
             auto output_name = avgpool_node->getResult().generateNodeOutputName(true);
             node_outputs.emplace_back(output_name);
-            LOG(INFO) << "output_name: " << output_name;
+            //LOG(INFO) << "output_name: " << output_name;
             break;
         }
         case Kinded::Kind::AddNodeKind:
@@ -388,14 +389,14 @@ MWNNGraph::MWNNGraph(Function *F) {
             node_op_type = "Add";
             auto *add_node = llvm::cast<AddNode>(node);
             auto input1 = add_node->getLHS().generateNodeOutputName(true);
-            LOG(INFO) << "input_name 1: " << input1;
+            //LOG(INFO) << "input_name 1: " << input1;
             auto input2 = add_node->getRHS().generateNodeOutputName(true);
-            LOG(INFO) << "input_name 2: " << input2;
+            //LOG(INFO) << "input_name 2: " << input2;
             node_inputs.emplace_back(input1);
             node_inputs.emplace_back(input2);
             auto output_name = add_node->getResult().generateNodeOutputName(true);
             node_outputs.emplace_back(output_name);
-            LOG(INFO) << "output_name: " << output_name;
+            //LOG(INFO) << "output_name: " << output_name;
             break;
         }
         case Kinded::Kind::TransposeNodeKind:
@@ -404,10 +405,10 @@ MWNNGraph::MWNNGraph(Function *F) {
             auto *transpose_node = llvm::cast<TransposeNode>(node);
             auto input_name = transpose_node->getInput().generateNodeOutputName(true);
             node_inputs.emplace_back(input_name);
-            LOG(INFO) << "input_name: " << input_name;
+            //LOG(INFO) << "input_name: " << input_name;
             auto output_name = transpose_node->getResult().generateNodeOutputName(true);
             node_outputs.emplace_back(output_name);
-            LOG(INFO) << "output_name: " << output_name;
+            //LOG(INFO) << "output_name: " << output_name;
             break;
         }
         case Kinded::Kind::ReshapeNodeKind:
@@ -429,10 +430,10 @@ MWNNGraph::MWNNGraph(Function *F) {
             node_inputs.emplace_back(input_name);
             node_inputs.emplace_back(initializer_name);
             mwnn_initializer_names.insert(initializer_name);
-            LOG(INFO) << "input_name: " << input_name;
+            //LOG(INFO) << "input_name: " << input_name;
             auto output_name = reshape_node->getResult().generateNodeOutputName(true);
             node_outputs.emplace_back(output_name);
-            LOG(INFO) << "output_name: " << output_name;
+            //LOG(INFO) << "output_name: " << output_name;
             break;
         }
         default:
@@ -442,6 +443,7 @@ MWNNGraph::MWNNGraph(Function *F) {
         mwnn_nodes.emplace_back(mwnn_node);
         auto op_node = mwnn_node.get_node();
         mwnn_graph_nodes[mwnn_node.get_name()] = std::move(op_node);
+        global_output_name = node_outputs[0].c_str();
       }
   }
   // Graph input and output handling
@@ -450,11 +452,13 @@ MWNNGraph::MWNNGraph(Function *F) {
   auto &last_node = nodes.back();
   auto input_name = std::string(first_node.getNthInput(0).getNode()->getName());
   auto output_name = std::string(last_node.getNthResult(0).getNode()->getName());
-  ip_name = input_name;
-  op_name = output_name;
-  for (auto *v : F->getParent()->getPlaceholders()) {
-    auto glow_dims = v->getType()->dims();
-    auto data_type = v->getType()->getElementType();
+  for (auto &V : F->getParent()->getPlaceholders()) {
+    if (!usedInFunction(V, F)) {
+      continue;
+    }
+
+    auto glow_dims = V->getType()->dims();
+    auto data_type = V->getType()->getElementType();
     int size = glow_dims.size();
     std::vector<int> dims(size);
     // Input dims from NCHW to NHWC
@@ -462,18 +466,15 @@ MWNNGraph::MWNNGraph(Function *F) {
     dims[3] = int(glow_dims[1]);
     dims[2] = int(glow_dims[2]);
     dims[0] = int(glow_dims[0]);
-
-    if(v->getName().equals(input_name))
-    {
-      metawarenn::MWNNValueInfo mwnn_input(input_name, dims, data_type);
-      mwnn_inputs.emplace_back(mwnn_input);
-      mwnn_initializer_names.insert(input_name);
-    }
-    else
-    {
-      metawarenn::MWNNValueInfo mwnn_output(output_name, dims, data_type);
+    if (getOutputSave(F, V)) {
+      metawarenn::MWNNValueInfo mwnn_output(global_output_name, dims, data_type);
       mwnn_outputs.emplace_back(mwnn_output);
-      mwnn_initializer_names.insert(output_name);
+      op_name = global_output_name;
+    }
+    else if(V->getName().equals(input_name)) {
+      metawarenn::MWNNValueInfo mwnn_input(V->getName(), dims, data_type);
+      mwnn_inputs.emplace_back(mwnn_input);
+      ip_name = V->getName();
     }
   }
 }

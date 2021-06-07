@@ -15,8 +15,9 @@ Expected<std::unique_ptr<CompiledFunction>>
 MetaWareNNBackend::compile(Function *F, const BackendOptions &opts) const
 {
     LOG(INFO) << "In MetaWareNNBackend::compile";
+
     std::unique_ptr<MetaWareNNFunction> compiledFunc =
-        glow::make_unique<MetaWareNNFunction>(F);
+        glow::make_unique<MetaWareNNFunction>(glow::runtime::RuntimeBundle::create(*F), F);
     return Expected<std::unique_ptr<CompiledFunction>>(std::move(compiledFunc));
 }
 

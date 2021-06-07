@@ -2,7 +2,6 @@
 #define GLOW_METAWARENN_BACKEND_H
 
 #include "glow/Backend/Backend.h"
-#include "DummyFunction.h"
 #include "MetaWareNNDeviceManager.h"
 
 using namespace glow;

@@ -2,13 +2,8 @@
 #define GLOW_BACKENDS_METAWARENN_METAWARENNDEVICEMANAGER_H
 
 #include "glow/Backends/DeviceManager.h"
-#include "metawarenn_lib/metawarenn_graph.h"
-#include "metawarenn_lib/metawarenn_utils.h"
 #include "glow/Graph/Utils.h"
-
-#include "metawarenn_lib/optimizer/pass_manager.h"
-#include "metawarenn_lib/optimizer/metawarenn_optimizer.h"
-#include "metawarenn_lib/metawarenn_utils.h"
+#include "MetaWareNNFunction.h"
 
 #include <boost/serialization/string.hpp>
 #include <boost/archive/text_oarchive.hpp>
@@ -20,18 +15,12 @@
 
 #include "metawarenn_lib/mwnnconvert/mwnn_protobuf/cpp_wrapper/MWNN.pb.h"
 
-#define CHW_TO_HWC 0
-#define HWC_TO_CHW 1
-#define INVOKE_NNAC 1
-
-using namespace glow;
-
 namespace metawarenn {
 
-class MetaWareNNDeviceManager : public  glow::runtime::DeviceManager {
+class MetaWareNNDeviceManager : public glow::runtime::DeviceManager {
 
 public:
-  MetaWareNNDeviceManager(const  glow::runtime::DeviceConfig &config);
+  MetaWareNNDeviceManager(const glow::runtime::DeviceConfig &config);
   ~MetaWareNNDeviceManager();
   glow::runtime::RunIdentifierTy
   runFunction(std::string functionName,
@@ -45,8 +34,18 @@ public:
   uint64_t getMaximumMemory() const override;
   uint64_t getAvailableMemory() const override;
   bool isMemoryAvailable(uint64_t estimate) const override;
+  Error init() override;
+  Error stop(bool block) override;
+private:
+  struct MetaWareNNFunctionMeta {
+    int graph_id;
+    MetaWareNNFunction *function;
+  };
+  std::unordered_map<std::string, MetaWareNNFunctionMeta> mwnn_functions_;
+  static std::atomic<glow::runtime::RunIdentifierTy> runIdentifier_;
 };
   glow::runtime::DeviceManager *createMetaWareNNDeviceManager(const glow::runtime::DeviceConfig &config);
-}
+
+} // namespace metawarenn
 
 #endif // GLOW_BACKENDS_HABANADEVICEMANAGER_H

@@ -7,7 +7,7 @@ namespace optimizer {
 ConvertLayout::ConvertLayout() {
   set_name("ConvertLayout");
 }
-ConvertLayout::ConvertLayout(MWNNGraph* mwnn_graph, MWNNTensor mwnn_tensor, bool to_hwc, bool to_chw) {
+ConvertLayout::ConvertLayout(std::shared_ptr<MWNNGraph> mwnn_graph, MWNNTensor mwnn_tensor, bool to_hwc, bool to_chw) {
   set_name("ConvertLayout");
   graph = mwnn_graph;
   tensor = mwnn_tensor;
@@ -15,7 +15,7 @@ ConvertLayout::ConvertLayout(MWNNGraph* mwnn_graph, MWNNTensor mwnn_tensor, bool
   HWC_to_CHW = to_chw;
   is_tensor = true;
 }
-ConvertLayout::ConvertLayout(MWNNGraph* mwnn_graph, MWNNValueInfo mwnn_value_info, bool to_hwc, bool to_chw) {
+ConvertLayout::ConvertLayout(std::shared_ptr<MWNNGraph> mwnn_graph, MWNNValueInfo mwnn_value_info, bool to_hwc, bool to_chw) {
   set_name("ConvertLayout");
   graph = mwnn_graph;
   value_info = mwnn_value_info;
@@ -33,15 +33,11 @@ void ConvertLayout::RunPass() {
       int channel = dims[1];
       int height = dims[2];
       int width = dims[3];
-      int num_output = dims[0];
       // Data layout conversion from CHW to HWC
-
-      for(int n = 0; n < num_output; n++) {
-        for(int i = 0; i < height; i++) {
-          for(int j = 0; j < width; j++) {
-            for(int k = 0; k < channel; k++) {
-              new_data[(n * height * width * channel) + (i * width * channel) + (j * channel) + k] = data[(n * height * width * channel) + (k * height * width) + (i * width) + (j)];
-            }
+      for(int i = 0; i < height; i++) {
+        for(int j = 0; j < width; j++) {
+          for(int k = 0; k < channel; k++) {
+            new_data[(i * width * channel) + (j * channel) + k] = data[(k * height * width) + (i * width) + (j)];
           }
         }
       }
@@ -62,14 +58,11 @@ void ConvertLayout::RunPass() {
       int channel = dims[3];
       int height = dims[1];
       int width = dims[2];
-      int num_output = dims[0];
       // Data layout conversion from HWC to CHW
-      for(int n = 0; n < num_output; n++) {
-        for(int i = 0; i < height; i++) {
-          for(int j = 0; j < width; j++) {
-            for(int k = 0; k < channel; k++) {
-              new_data[(n * height * width * channel) + (k * height * width) + (i * width) + j] = data[(n * height * width * channel) + (i * width * channel) + (j * channel) + k];
-            }
+      for(int i = 0; i < height; i++) {
+        for(int j = 0; j < width; j++) {
+          for(int k = 0; k < channel; k++) {
+            new_data[(k * height * width) + (i * width) + j] = data[(i * width * channel) + (j * channel) + k];
           }
         }
       }

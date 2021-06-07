@@ -29,6 +29,7 @@
 #if GLOW
 #include "Glow/Graph/Graph.h"
 #include "Glow/Graph/Utils.h"
+#include "glow/Backend/BackendUtils.h"
 #endif
 
 #include <boost/serialization/string.hpp>
