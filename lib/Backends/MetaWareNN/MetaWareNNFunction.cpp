@@ -4,6 +4,7 @@ namespace metawarenn {
 
 MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function *F)
     : CompiledFunction(std::move(bundle)) {
+    findIOPlaceholders(F);
     graph_count++;
     std::string subgraph_name = "MetaWareNN_" + std::to_string(graph_count);
     mwnn_graph_ = std::make_shared<MWNNGraph>(F, subgraph_name); //Parse the GLOW Function to MWNNGraph
@@ -162,17 +163,44 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
       close(fp);
 
       std::cout << "\n\n=================Initiating NNAC python script via shell script======================\n";
-      std::string cmd = "bash /Path/to/glow/lib/Backends/MetaWareNN/metawarenn_lib/mwnnconvert/mwnn_convert.sh " + mwnn_proto_bin + " " + mwnn_op_path + " " + g_name + " " + std::to_string(graph_count);
+      std::string cmd = "bash /path/to/glow/lib/Backends/MetaWareNN/metawarenn_lib/mwnnconvert/mwnn_convert.sh " + mwnn_proto_bin + " " + mwnn_op_path + " " + g_name + " " + std::to_string(graph_count);
       const char *command = cmd.c_str();
       system(command);
 
     #endif
 }
+void MetaWareNNFunction::findIOPlaceholders(Function *F) {
+  for (auto const &V : F->getParent()->getPlaceholders()) {
+    if (!usedInFunction(V, F)) {
+      continue;
+    }
+    if (getOutputSave(F, V)) {
+      std::cout << "\n V->getName() in *88888 if op: " << std::string(V->getName());
+      outputs_.push_back(V);
+    } else {
+      std::cout << "\n V->getName() in *88888 elee: " << std::string(V->getName());
+      inputs_.push_back(V);
+    }
+  }
+}
 
 MetaWareNNFunction::~MetaWareNNFunction() {}
 
 Error MetaWareNNFunction::execute(ExecutionContext *context) {
-  convert_to_mwnn_format(*mwnn_graph_, CHW_TO_HWC);
+  //Fills the graph_inputs with input data pointer using indexes
+  std::unordered_map<std::string, float*> graph_inputs;
+  std::unordered_map<std::string, float*> graph_outputs;
+  auto bindings = context->getPlaceholderBindings();
+  for (const auto &ph : this->getInputs()) {
+    auto *tensor = bindings->get(ph);
+    graph_inputs[std::string(ph->getName())] = (float*)tensor->getUnsafePtr();
+  }
+  for (const auto &ph : this->getOutputs()) {
+    auto *tensor = bindings->get(ph);
+    graph_outputs[mwnn_graph_->get_graph_op_name()] = (float*)tensor->getUnsafePtr();
+
+  }
+  convert_to_mwnn_format(*mwnn_graph_, graph_inputs, graph_outputs, CHW_TO_HWC);
   return Error::success();
 }
 } // namespace metawarenn

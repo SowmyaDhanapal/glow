@@ -25,8 +25,19 @@ public:
   ~MetaWareNNFunction() override;
   std::string getCompileBackendName() const override { return "MetaWareNN"; }
   Error execute(ExecutionContext *context) override;
+  const PlaceholderList &getInputs() const { return inputs_; }
+  const PlaceholderList &getOutputs() const { return outputs_; }
   ///@}
 private:
+  /// Build the list of input and output placeholders.
+  void findIOPlaceholders(Function *F);
+
+  /// List of model input placeholders.
+  PlaceholderList inputs_;
+
+  /// List of model output placeholders.
+  PlaceholderList outputs_;
+
   std::shared_ptr<::metawarenn::MWNNGraph> mwnn_graph_;
 };
 

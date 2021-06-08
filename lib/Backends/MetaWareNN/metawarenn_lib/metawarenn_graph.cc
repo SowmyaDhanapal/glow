@@ -470,11 +470,17 @@ MWNNGraph::MWNNGraph(Function *F, std::string subgraph_name) {
       metawarenn::MWNNValueInfo mwnn_output(global_output_name, dims, data_type);
       mwnn_outputs.emplace_back(mwnn_output);
       op_name = global_output_name;
+      //Fills Graph Output Tensor Details - Name, Dims
+      MWNNTensor mwnn_op_tensor(mwnn_output.get_name(), mwnn_output.get_dims());
+      mwnn_graph_op_tensors.emplace_back(mwnn_op_tensor);
     }
     else if(V->getName().equals(input_name)) {
       metawarenn::MWNNValueInfo mwnn_input(V->getName(), dims, data_type);
       mwnn_inputs.emplace_back(mwnn_input);
       ip_name = V->getName();
+      //Fills Graph Input Tensor Details - Name, Dims
+      MWNNTensor mwnn_ip_tensor(mwnn_input.get_name(), mwnn_input.get_dims());
+      mwnn_graph_ip_tensors.emplace_back(mwnn_ip_tensor);
     }
   }
 }

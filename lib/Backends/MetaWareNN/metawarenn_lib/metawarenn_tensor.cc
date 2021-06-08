@@ -49,5 +49,10 @@ MWNNTensor::MWNNTensor(std::string m_name, std::vector<int> m_dims, ElemKind m_t
     tensor = m_tensor;
     for (auto& it : dims) { std::cout << it << ' '; }
 }
+
+MWNNTensor::MWNNTensor(std::string t_name, std::vector<int> t_shape) {
+  name = t_name;
+  dims = t_shape;
+}
 #endif
 } //namespace metawarenn
