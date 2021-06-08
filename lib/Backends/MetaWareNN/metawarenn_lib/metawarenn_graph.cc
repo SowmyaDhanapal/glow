@@ -263,14 +263,14 @@ MWNNGraph::MWNNGraph(TfLiteContext* context, std::vector<int> subgraph_nodes_) {
 
 #if GLOW
 //GLOWConstructor
-MWNNGraph::MWNNGraph(Function *F) {
-  name = std::string(F->getName());
+MWNNGraph::MWNNGraph(Function *F, std::string subgraph_name) {
+  name = subgraph_name;
   LOG(INFO) << "Function name: " << name;
   GraphPostOrderVisitor visitor(*F);
   auto node_list = visitor.getPostOrder();
   auto global_output_name = "";
   for (auto *node : node_list) {
-      //LOG(INFO) << "==============================================================================================================";
+      LOG(INFO) << "==============================================================================================================";
       std::string node_name;
       std::string node_op_type;
       std::vector<std::string> node_inputs;
@@ -366,10 +366,10 @@ MWNNGraph::MWNNGraph(Function *F) {
             auto *relu_node = llvm::cast<ReluNode>(node);
             auto input_name = relu_node->getInput().generateNodeOutputName(true);
             node_inputs.emplace_back(input_name);
-            //LOG(INFO) << "input_name: " << input_name;
+            LOG(INFO) << "input_name: " << input_name;
             auto output_name = relu_node->getResult().generateNodeOutputName(true);
             node_outputs.emplace_back(output_name);
-            //LOG(INFO) << "output_name: " << output_name;
+            LOG(INFO) << "output_name: " << output_name;
             break;
         }
         case Kinded::Kind::AvgPoolNodeKind:
@@ -378,10 +378,10 @@ MWNNGraph::MWNNGraph(Function *F) {
             auto *avgpool_node = llvm::cast<AvgPoolNode>(node);
             auto input_name = avgpool_node->getInput().generateNodeOutputName(true);
             node_inputs.emplace_back(input_name);
-            //LOG(INFO) << "input_name: " << input_name;
+            LOG(INFO) << "input_name: " << input_name;
             auto output_name = avgpool_node->getResult().generateNodeOutputName(true);
             node_outputs.emplace_back(output_name);
-            //LOG(INFO) << "output_name: " << output_name;
+            LOG(INFO) << "output_name: " << output_name;
             break;
         }
         case Kinded::Kind::AddNodeKind:
@@ -389,14 +389,14 @@ MWNNGraph::MWNNGraph(Function *F) {
             node_op_type = "Add";
             auto *add_node = llvm::cast<AddNode>(node);
             auto input1 = add_node->getLHS().generateNodeOutputName(true);
-            //LOG(INFO) << "input_name 1: " << input1;
+            LOG(INFO) << "input_name 1: " << input1;
             auto input2 = add_node->getRHS().generateNodeOutputName(true);
-            //LOG(INFO) << "input_name 2: " << input2;
+            LOG(INFO) << "input_name 2: " << input2;
             node_inputs.emplace_back(input1);
             node_inputs.emplace_back(input2);
             auto output_name = add_node->getResult().generateNodeOutputName(true);
             node_outputs.emplace_back(output_name);
-            //LOG(INFO) << "output_name: " << output_name;
+            LOG(INFO) << "output_name: " << output_name;
             break;
         }
         case Kinded::Kind::TransposeNodeKind:
@@ -405,10 +405,10 @@ MWNNGraph::MWNNGraph(Function *F) {
             auto *transpose_node = llvm::cast<TransposeNode>(node);
             auto input_name = transpose_node->getInput().generateNodeOutputName(true);
             node_inputs.emplace_back(input_name);
-            //LOG(INFO) << "input_name: " << input_name;
+            LOG(INFO) << "input_name: " << input_name;
             auto output_name = transpose_node->getResult().generateNodeOutputName(true);
             node_outputs.emplace_back(output_name);
-            //LOG(INFO) << "output_name: " << output_name;
+            LOG(INFO) << "output_name: " << output_name;
             break;
         }
         case Kinded::Kind::ReshapeNodeKind:
@@ -430,10 +430,10 @@ MWNNGraph::MWNNGraph(Function *F) {
             node_inputs.emplace_back(input_name);
             node_inputs.emplace_back(initializer_name);
             mwnn_initializer_names.insert(initializer_name);
-            //LOG(INFO) << "input_name: " << input_name;
+            LOG(INFO) << "input_name: " << input_name;
             auto output_name = reshape_node->getResult().generateNodeOutputName(true);
             node_outputs.emplace_back(output_name);
-            //LOG(INFO) << "output_name: " << output_name;
+            LOG(INFO) << "output_name: " << output_name;
             break;
         }
         default:

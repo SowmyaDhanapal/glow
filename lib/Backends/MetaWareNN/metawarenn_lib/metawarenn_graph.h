@@ -20,7 +20,7 @@ class MWNNGraph {
     MWNNGraph(TfLiteContext* context, std::vector<int> subgraph_nodes_);
     #endif
     #if GLOW
-    MWNNGraph(Function *F);
+    MWNNGraph(Function *F, std::string subgraph_name);
     #endif
     std::string get_name() { return name; }
     std::string get_graph_ip_name() { return ip_name; }

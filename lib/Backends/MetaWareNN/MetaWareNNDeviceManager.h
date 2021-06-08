@@ -13,8 +13,6 @@
 #include <boost/interprocess/mapped_region.hpp>
 #include <boost/interprocess/streams/bufferstream.hpp>
 
-#include "metawarenn_lib/mwnnconvert/mwnn_protobuf/cpp_wrapper/MWNN.pb.h"
-
 namespace metawarenn {
 
 class MetaWareNNDeviceManager : public glow::runtime::DeviceManager {
@@ -38,7 +36,6 @@ public:
   Error stop(bool block) override;
 private:
   struct MetaWareNNFunctionMeta {
-    int graph_id;
     MetaWareNNFunction *function;
   };
   std::unordered_map<std::string, MetaWareNNFunctionMeta> mwnn_functions_;

@@ -26,9 +26,7 @@ MetaWareNNDeviceManager::runFunction(std::string functionName,
   LOG(INFO) << "runFunction!";
   RunIdentifierTy runId = runIdentifier_++;
   auto it = mwnn_functions_.find(functionName);
-  int graph_id;
   MetaWareNNFunction *mwnn_function;
-  graph_id = (it->second).graph_id;
   mwnn_function = (it->second).function;
   auto executeErr = mwnn_function->execute(ctx.get());
   if (executeErr) {
@@ -42,15 +40,13 @@ MetaWareNNDeviceManager::runFunction(std::string functionName,
 void MetaWareNNDeviceManager::addNetwork(const Module *module,
                                          glow::runtime::FunctionMapTy functions,
                                          glow::runtime::ReadyCBTy readyCB) {
-  int graph_count = 0;
   for (auto &func : functions) {
-    graph_count++;
     MetaWareNNFunction *mwnnFunction = static_cast<MetaWareNNFunction*>(func.second);
 
     // Insert the mwnnFunction into mwnn_functions_.
     bool inserted = false;
     std::tie(std::ignore, inserted) = mwnn_functions_.insert(std::make_pair(func.first,
-                          MetaWareNNFunctionMeta{graph_count, mwnnFunction}));
+                          MetaWareNNFunctionMeta{mwnnFunction}));
 
   }
   readyCB(module, Error::success());

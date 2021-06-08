@@ -45,13 +45,15 @@
     * Unzip and move the "libprotobuf.so" to "/path/to/glow/lib/Backends/MetaWareNN"
 
 * ### Modify the below mentioned files
-    1. Update "/glow/lib/Backends/MetaWareNN/MetaWareNNDeviceManager.cpp" file
-        i. Set the Path to store serialized "mobilenetv2-7_graphproto.bin" in line no:190
-        ii. Update the path to glow in line no:196
+    1. Update "/glow/lib/Backends/MetaWareNN/MetaWareNNFunction.cpp" file
+        i. Set the path to store the MWNN file dumps in line no: 156
+        ii. Update the path to Glow repository in line no: 165
     2. Update "/glow/lib/Backends/MetaWareNN/metawarenn_lib/mwnnconvert/mwnn_convert.sh" file
-        i. Set the $EV_CNNMODELS_HOME path in line no:3
+        i. Set the $EV_CNNMODELS_HOME path in line no: 3
         ii. Set the absolute path for ARC/setup.sh file in line no: 4
-        iii. Update the path to glow, path to serialized mobilenetv2-7_graphproto.bin, path to store nnac output in line no:5
+        iii. Update the path to Glow with MWNN support in line no: 9 & 22
+        iv. Update the path to evgencnn executable in line no: 10
+        v. Update the Imagenet images path in line no: 20
 ### Configure and Build Glow
 * #### For Release Build 
     * `mkdir build_Release`
