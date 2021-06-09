@@ -5,14 +5,6 @@
 #include "glow/Graph/Utils.h"
 #include "MetaWareNNFunction.h"
 
-#include <boost/serialization/string.hpp>
-#include <boost/archive/text_oarchive.hpp>
-#include <boost/archive/text_iarchive.hpp>
-
-#include <boost/interprocess/shared_memory_object.hpp>
-#include <boost/interprocess/mapped_region.hpp>
-#include <boost/interprocess/streams/bufferstream.hpp>
-
 namespace metawarenn {
 
 class MetaWareNNDeviceManager : public glow::runtime::DeviceManager {

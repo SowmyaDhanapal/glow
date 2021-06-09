@@ -8,6 +8,8 @@
 #include "metawarenn_lib/optimizer/pass_manager.h"
 #include "metawarenn_lib/optimizer/metawarenn_optimizer.h"
 #include "metawarenn_lib/mwnnconvert/mwnn_protobuf/cpp_wrapper/MWNN.pb.h"
+#include <fcntl.h>
+#include <unistd.h>
 
 #define CHW_TO_HWC 0
 #define HWC_TO_CHW 1

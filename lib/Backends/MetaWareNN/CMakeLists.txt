@@ -31,7 +31,6 @@ add_library(MetaWareNN
 set(PROTOBUF_LIB "${CMAKE_CURRENT_SOURCE_DIR}/libprotobuf.so")
 target_link_libraries(MetaWareNN
                       Backend
-                      -lboost_serialization
                       -lrt
                       ${PROTOBUF_LIB})
 
