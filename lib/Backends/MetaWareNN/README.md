@@ -46,8 +46,9 @@
 
 * ### Modify the below mentioned files
     1. Update "/glow/lib/Backends/MetaWareNN/MetaWareNNFunction.cpp" file
-        i. Set the path to store the MWNN file dumps in line no: 156
-        ii. Update the path to Glow repository in line no: 165
+        i. Set the path to store the MWNN file dumps in line no: 157
+        ii. Update the path to Glow repository in line no: 166
+        iii Set the path to evgencnn/scripts folder in line no: 170
     2. Update "/glow/lib/Backends/MetaWareNN/metawarenn_lib/mwnnconvert/mwnn_convert.sh" file
         i. Set the $EV_CNNMODELS_HOME path in line no: 3
         ii. Set the absolute path for ARC/setup.sh file in line no: 4

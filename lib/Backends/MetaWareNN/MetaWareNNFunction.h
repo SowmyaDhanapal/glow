@@ -10,7 +10,17 @@
 #include "metawarenn_lib/mwnnconvert/mwnn_protobuf/cpp_wrapper/MWNN.pb.h"
 #include <fcntl.h>
 #include <unistd.h>
+#include <fstream>
+#include <sys/ipc.h>
+#include <sys/shm.h>
 
+
+#define BUF_SIZE 7340032 //Maximum size fixed for MobilenetV2 EV binary
+
+struct shmseg {
+   int cnt;
+   char buf[BUF_SIZE];
+};
 #define CHW_TO_HWC 0
 #define HWC_TO_CHW 1
 #define INVOKE_NNAC 1
