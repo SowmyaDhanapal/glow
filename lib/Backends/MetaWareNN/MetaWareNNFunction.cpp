@@ -166,39 +166,6 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
       std::string cmd = "bash /path/to/glow/lib/Backends/MetaWareNN/metawarenn_lib/mwnnconvert/mwnn_convert.sh " + mwnn_proto_bin + " " + mwnn_op_path + " " + g_name + " " + std::to_string(graph_count);
       const char *command = cmd.c_str();
       system(command);
-      std::ifstream in;
-      in.open("/path/to/ARC/cnn_tools/utils/tools/evgencnn/scripts/cnn_bin_" + g_name + ".bin", std::ios::in | std::ios::binary);
-      if(in.is_open())
-      {
-          std::streampos start = in.tellg();
-          in.seekg(0, std::ios::end);
-          std::streampos end = in.tellg();
-          in.seekg(0, std::ios::beg);
-          std::vector<char> contents;
-          contents.resize(static_cast<size_t>(end - start));
-          in.read(&contents[0], contents.size());
-          auto data = contents.data();
-          int shmid;
-          struct shmseg *shmp;
-          //Create unique key
-          key_t key = ftok("/tmp/", graph_count);
-          std::cout << "\nkey: " << key;
-          shmid = shmget(key, sizeof(struct shmseg), 0644|IPC_CREAT);
-          if (shmid == -1) {
-              perror("Shared memory");
-              exit(1);
-          }
-          shmp = (shmseg*)shmat(shmid, NULL, 0);
-          if (shmp == (void *) -1) {
-              perror("Shared memory attach");
-              exit(1);
-          }
-          memcpy(shmp->buf, data, contents.size());
-          shmp->cnt = contents.size();
-          printf("\nWriting Process: Shared Memory Write: Wrote %d bytes\n", shmp->cnt);
-          sleep(3);
-          printf("\nWriting Process: Complete\n");
-      }
     #endif
 }
 void MetaWareNNFunction::findIOPlaceholders(Function *F) {
@@ -232,6 +199,28 @@ Error MetaWareNNFunction::execute(ExecutionContext *context) {
     graph_outputs[mwnn_graph_->get_graph_op_name()] = (float*)tensor->getUnsafePtr();
 
   }
+
+  // **************************************** Calls to invoke the MetaWareNN Inference API ************************************
+  MWNNInferenceApi mwapi;
+
+  std::string ip_name = mwnn_graph_->get_graph_ip_name();
+  auto ip_shape = mwnn_graph_->get_graph_ip_tensor()[0].get_dims();
+
+  mwapi.prepareInput(graph_inputs[ip_name], ip_shape);
+
+  std::string op_name = mwnn_graph_->get_graph_op_name();
+  auto op_shape = mwnn_graph_->get_graph_op_tensor()[0].get_dims();
+
+  mwapi.prepareOutput(op_shape);
+
+  mwapi.prepareGraph(mwnn_graph_->get_name());
+
+  mwapi.runGraph();
+
+  mwapi.getOutput(graph_outputs[op_name], op_shape);
+
+  // ******************************************* Call to invoke the local run function *****************************************
+
   convert_to_mwnn_format(*mwnn_graph_, graph_inputs, graph_outputs, CHW_TO_HWC);
   return Error::success();
 }

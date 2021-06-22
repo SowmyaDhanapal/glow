@@ -55,6 +55,8 @@
         iii. Update the path to Glow with MWNN support in line no: 9 & 22
         iv. Update the path to evgencnn executable in line no: 10
         v. Update the Imagenet images path in line no: 20
+    3. Update the "/glow/lib/Backends/MetaWareNN/metawarenn_lib/mwnn_inference_api/mwnn_inference_api.cc" file as follows:
+        i.  Set the path to evgencnn/scripts folder in line no: 51
 ### Configure and Build Glow
 * #### For Release Build 
     * `mkdir build_Release`
@@ -71,6 +73,7 @@
 * `Download the model at https://github.com/onnx/models/blob/master/vision/classification/mobilenet/model/mobilenetv2-7.onnx`
 * `cd /path/to/glow/build_Release/bin`
 * `./image-classifier ../../tests/images/imagenet/cat_285.png -image-mode=0to1 -m=/path/to/mobilenetv2-7.onnx -model-input-name=data -cpu-memory=100000 -backend=MetaWareNN`
+* `./image-classifier ../../tests/images/imagenet/dog_207.png -image-mode=0to1 -m=/path/to/mobilenetv2-7.onnx -model-input-name=data -cpu-memory=100000 -load-device-configs="../tests/runtime_test/heterogeneousConfigs.yaml"`
 
 ### To Run Standalone Inference using MetaWareNN Backend
 * `cd /path/to/glow/lib/Backends/MetaWareNN/Inference`
