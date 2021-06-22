@@ -8,8 +8,6 @@
 
 namespace metawarenn {
 
-#define MAX_INPUT_BUF_SIZE 224*224*3
-
 typedef mli_acc40_t mli_fx16_accu_t;
 
 void fill_mwnn_tensor_initalizer(std::string input_name, MWNNGraph mwnn_graph, mli_tensor *mwnn_initalizer, int *k_height, int *k_width, int *channels, int is_HWC);

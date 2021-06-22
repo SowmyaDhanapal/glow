@@ -14,6 +14,11 @@ MWNNTensor::MWNNTensor(TensorProto& onnx_tensor_proto) {
   set_tensor(onnx_tensor_proto);
 }
 
+MWNNTensor::MWNNTensor(std::string t_name, std::vector<int> t_shape) {
+  name = t_name;
+  dims = t_shape;
+}
+
 void MWNNTensor::set_tensor(TensorProto& onnx_tensor_proto) {
   switch (in_type) {
     case onnx::TensorProto_DataType_FLOAT:
@@ -37,6 +42,11 @@ MWNNTensor::MWNNTensor(std::string m_name, std::vector<int> m_dims, int m_type, 
     t_type = ElementType::get_mwnn_type_tf(in_type);
     tensor = m_tensor;
     for (auto& it : dims) { std::cout << it << ' '; }
+}
+
+MWNNTensor::MWNNTensor(std::string t_name, std::vector<int> t_shape) {
+  name = t_name;
+  dims = t_shape;
 }
 #endif
 

@@ -8,6 +8,7 @@
 //ONNXRuntime
 #if ONNX
 #include "onnx/onnx-ml.pb.h"
+#include <numeric>
 #endif
 
 //TFLite
@@ -19,6 +20,8 @@
 #include <numeric>
 #include <set>
 #include <map>
+#include <fcntl.h>
+#include <unordered_map>
 #include "tensorflow/lite/c/common.h"
 #include "tensorflow/lite/builtin_ops.h"
 #include "tensorflow/lite/c/builtin_op_data.h"
