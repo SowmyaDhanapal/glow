@@ -1,5 +1,5 @@
 ## Steps to Build & Run GLOW MetaWareNN Backend
-### Get Glow 
+### Get Glow
 1. `git clone https://github.com/SowmyaDhanapal/glow.git`
 2. `cd glow`
 3. `git submodule update --init --recursive`
@@ -39,7 +39,7 @@
     * `./bootstrap`
     * `make`
     * `sudo make install`
-    
+
 * ### Protobuf library dependencies
     * Download protobuf library version 3.11.3 from the egnyte link https://multicorewareinc.egnyte.com/dl/FjljPlgjlI
     * Unzip and move the "libprotobuf.so" to "/path/to/glow/lib/Backends/MetaWareNN"
@@ -58,7 +58,7 @@
     3. Update the "/glow/lib/Backends/MetaWareNN/metawarenn_lib/mwnn_inference_api/mwnn_inference_api.cc" file as follows:
         i.  Set the path to evgencnn/scripts folder in line no: 51
 ### Configure and Build Glow
-* #### For Release Build 
+* #### For Release Build
     * `mkdir build_Release`
     * `cd build_Release`
     * `cmake -G Ninja -DCMAKE_BUILD_TYPE=Release ../../glow -DLLVM_DIR=/path/to/glow/llvm_install/lib/cmake/llvm`
@@ -70,10 +70,22 @@
     *  `ninja all`
 
 ### To Run Inference using MetaWareNN Backend
-* `Download the model at https://github.com/onnx/models/blob/master/vision/classification/mobilenet/model/mobilenetv2-7.onnx`
+* Download the MobileNet-V2 model using the zip file from egnyte link - https://multicorewareinc.egnyte.com/dl/2JAUNXlGg0 and unzip the same
 * `cd /path/to/glow/build_Release/bin`
 * `./image-classifier ../../tests/images/imagenet/cat_285.png -image-mode=0to1 -m=/path/to/mobilenetv2-7.onnx -model-input-name=data -cpu-memory=100000 -backend=MetaWareNN`
 * `./image-classifier ../../tests/images/imagenet/dog_207.png -image-mode=0to1 -m=/path/to/mobilenetv2-7.onnx -model-input-name=data -cpu-memory=100000 -load-device-configs="../tests/runtime_test/heterogeneousConfigs.yaml"`
+
+## To run multiple ONNX models from model zoo
+* Create a directory to download onnx models and move to the directory
+* `cd /path/to/store/onnx_model_dir`
+* Download the models from ONNX model zoo by running the below shell script
+    *   `sh /path/to/glow/lib/Backends/MetaWareNN/download_ONNX_models.sh`
+* Set the path to downloaded onnx model directory in glow/lib/Backends/MetaWareNN/run_ONNX_models.sh file line no: 1
+* `cd /path/to/glow/build_Release/bin`
+* Run the ONNX models from model zoo in metawarenn backend with below command
+    *   `sh /path/to/glow/lib/Backends/MetaWareNN/run_ONNX_models.sh`
+
+* Note: MobileNet-V2 model is only passed through execution flow, since MLI kernels are yet to be added for additional operators in the models from model zoo. So, recently updated MobileNet-V2 model(with additional operators) from model zoo is excluded in this shell script.
 
 ### To Run Standalone Inference using MetaWareNN Backend
 * `cd /path/to/glow/lib/Backends/MetaWareNN/Inference`

@@ -21,6 +21,25 @@ add_library(MetaWareNN
             metawarenn_lib/op/reshape.cc
             metawarenn_lib/op/softmax.cc
             metawarenn_lib/op/transpose.cc
+            metawarenn_lib/op/global_avg_pool.cc
+            metawarenn_lib/op/gemm.cc
+            metawarenn_lib/op/max_pool.cc
+            metawarenn_lib/op/flatten.cc
+            metawarenn_lib/op/batch_normalization.cc
+            metawarenn_lib/op/concat.cc
+            metawarenn_lib/op/lrn.cc
+            metawarenn_lib/op/mul.cc
+            metawarenn_lib/op/clip.cc
+            metawarenn_lib/op/squeeze.cc
+            metawarenn_lib/op/unsqueeze.cc
+            metawarenn_lib/op/gather.cc
+            metawarenn_lib/op/shape.cc
+            metawarenn_lib/op/mean.cc
+            metawarenn_lib/op/split.cc
+            metawarenn_lib/op/strided_slice.cc
+            metawarenn_lib/op/pad.cc
+            metawarenn_lib/op/channel_shuffle.cc
+            metawarenn_lib/op/fully_connected.cc
             metawarenn_lib/optimizer/metawarenn_optimizer.cc
             metawarenn_lib/optimizer/remove_reshape.cc
             metawarenn_lib/optimizer/fuse_relu.cc

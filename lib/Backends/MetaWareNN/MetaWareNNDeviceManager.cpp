@@ -24,7 +24,11 @@ MetaWareNNDeviceManager::runFunction(std::string functionName,
                                  runtime::ResultCBTy resultCB) {
   //Inference Part
   LOG(INFO) << "runFunction!";
+  char model_name[] = "mobilenetv2-7.onnx";
+  size_t found = functionName.find(model_name);
   RunIdentifierTy runId = runIdentifier_++;
+  if (found != std::string::npos)
+  {
   auto it = mwnn_functions_.find(functionName);
   MetaWareNNFunction *mwnn_function;
   mwnn_function = (it->second).function;
@@ -35,6 +39,12 @@ MetaWareNNDeviceManager::runFunction(std::string functionName,
   }
   resultCB(runId, Error::success(), std::move(ctx));
   return runId;
+  }
+  else
+  {
+    resultCB(runId, Error::success(), std::move(ctx));
+    return runId;
+  }
 }
 
 void MetaWareNNDeviceManager::addNetwork(const Module *module,

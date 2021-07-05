@@ -32,6 +32,15 @@ bool MetaWareNNBackend::isOpSupported(const NodeInfo &NI) const
         case Kinded::Kind::ReshapeNodeKind:
         case Kinded::Kind::SaveNodeKind:
         case Kinded::Kind::TransposeNodeKind:
+        case Kinded::Kind::LocalResponseNormalizationNodeKind:
+        case Kinded::Kind::MaxPoolNodeKind:
+        case Kinded::Kind::GemmNodeKind:
+        case Kinded::Kind::BatchNormalizationNodeKind:
+        case Kinded::Kind::ConcatNodeKind:
+        case Kinded::Kind::ChannelShuffleNodeKind:
+        case Kinded::Kind::ClipNodeKind:
+        case Kinded::Kind::FullyConnectedNodeKind:
+        case Kinded::Kind::SoftMaxNodeKind:
             return true;
         default:
             return false;
