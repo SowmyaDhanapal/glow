@@ -4,10 +4,10 @@ namespace metawarenn {
 
 namespace optimizer {
 
-PassManager::PassManager() { /*std::cout << "\n In PassManager Constructor!!";*/ }
+PassManager::PassManager() { std::cout << "\n In PassManager Constructor!!"; }
 void PassManager::run_passes() {
   for (auto& pass : pass_list) {
-    std::cout  << "\n PassName : " << pass->get_name();
+    //std::cout  << "\n PassName : " << pass->get_name();
     if (auto remove_reshape_pass = std::dynamic_pointer_cast<RemoveReshape>(pass)) {
       remove_reshape_pass->RunPass();
     }
@@ -19,6 +19,9 @@ void PassManager::run_passes() {
     }
     else if (auto remove_transpose_pass = std::dynamic_pointer_cast<RemoveTranspose>(pass)) {
       remove_transpose_pass->RunPass();
+    }
+    else if (auto calculate_offset_pass = std::dynamic_pointer_cast<CalculateOffset>(pass)) {
+      calculate_offset_pass->RunPass();
     }
   }
 }

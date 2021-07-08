@@ -46,9 +46,12 @@ add_library(MetaWareNN
             metawarenn_lib/optimizer/convert_layout.cc
             metawarenn_lib/optimizer/remove_transpose.cc
             metawarenn_lib/optimizer/pass_manager.cc
+            metawarenn_lib/optimizer/calculate_offset.cc
             metawarenn_lib/mwnnconvert/mwnn_protobuf/cpp_wrapper/MWNN.pb.cc
             metawarenn_lib/mwnn_inference_api/mwnn_inference_api.cc
-            metawarenn_lib/mwnn_inference_api/mwnn_inference_shm.cc)
+            metawarenn_lib/mwnn_inference_api/mwnn_inference_shm.cc
+            metawarenn_lib/executable_network/metawarenn_executable_graph.cc
+            metawarenn_lib/executable_network/metawarenn_serialization.cc)
 set(PROTOBUF_LIB "${CMAKE_CURRENT_SOURCE_DIR}/libprotobuf.so")
 target_link_libraries(MetaWareNN
                       Backend

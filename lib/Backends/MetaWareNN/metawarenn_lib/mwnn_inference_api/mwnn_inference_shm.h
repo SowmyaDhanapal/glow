@@ -4,14 +4,14 @@
 #include <iostream>
 #include <sys/ipc.h>
 #include <sys/shm.h>
-#define TOTAL_MEMORY_SIZE 10000000
+#define TOTAL_MEMORY_SIZE 15000000
 
 namespace metawarenn {
 
 class MWNNSharedMemory {
   public:
     MWNNSharedMemory();
-    float *shmp;
+    char *shmp;
 };
 
 } //metawarenn

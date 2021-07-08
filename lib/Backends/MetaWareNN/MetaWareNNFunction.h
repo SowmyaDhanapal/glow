@@ -6,9 +6,9 @@
 #include "metawarenn_lib/metawarenn_graph.h"
 #include "metawarenn_lib/metawarenn_utils.h"
 #include "metawarenn_lib/optimizer/pass_manager.h"
-#include "metawarenn_lib/optimizer/metawarenn_optimizer.h"
 #include "metawarenn_lib/mwnnconvert/mwnn_protobuf/cpp_wrapper/MWNN.pb.h"
 #include "metawarenn_lib/mwnn_inference_api/mwnn_inference_api.h"
+#include "metawarenn_lib/executable_network/metawarenn_executable_graph.h"
 #include <fcntl.h>
 
 #define CHW_TO_HWC 0
@@ -41,6 +41,7 @@ private:
   PlaceholderList outputs_;
 
   std::shared_ptr<::metawarenn::MWNNGraph> mwnn_graph_;
+  std::shared_ptr<metawarenn::MWNNExecutableGraph> mwnn_exe_graph_;
 };
 
 } // namespace metawarenn

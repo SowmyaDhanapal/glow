@@ -48,7 +48,7 @@ void MWNNInferenceApi::prepareOutput(std::vector<int> shape) {
 void MWNNInferenceApi::prepareGraph(std::string name) {
   std::cout << "\n In prepareGraph";
   std::ifstream in;
-  in.open("/path/to/ARC/cnn_tools/utils/tools/evgencnn/scripts/cnn_bin_" + name + ".bin", std::ios::in | std::ios::binary);
+  in.open("/home/mcw/sowmya/GLOW/Forked_Repo/glow/lib/Backends/MetaWareNN/Inference/MWNNExecutableNetwork.bin", std::ios::in | std::ios::binary);
   if(in.is_open()) {
     std::streampos start = in.tellg();
     in.seekg(0, std::ios::end);
@@ -60,8 +60,8 @@ void MWNNInferenceApi::prepareGraph(std::string name) {
     auto data = contents.data();
     unsigned long int model_size = contents.size();
     if(this->available_bytes > model_size) {
-      this->model = mwnn_shm.shmp + this->used_bytes;
-      memcpy(this->model, data, model_size);
+      this->exe_graph = mwnn_shm.shmp + this->used_bytes;
+      memcpy(this->exe_graph, data, model_size);
       this->used_bytes = this->used_bytes + model_size;
       this->available_bytes = this->available_bytes - model_size;
     }
@@ -75,6 +75,49 @@ void MWNNInferenceApi::prepareGraph(std::string name) {
 void MWNNInferenceApi::runGraph() {
   std::cout << "\n In runGraph";
   //assume run() call takes input & model binary from shared memory & writes op to shared memory
+
+  //===================================== File Header Parsing =========================================//
+
+  blob_header graph_hdr = *reinterpret_cast<const blob_header*>(exe_graph);
+  std::cout << "\n ====================== Executable Graph Details =========================\n";
+  std::cout << "\nfile_size : " << graph_hdr.file_size;
+  std::cout << "\nnum_inputs : " << graph_hdr.num_inputs;
+  std::cout << "\nnum_outputs : " << graph_hdr.num_outputs;
+  std::cout << "\nnum_constants : " << graph_hdr.num_constants;
+  std::cout << "\nnum_layers : " << graph_hdr.num_layers;
+  std::cout << "\nbatch_size : " << graph_hdr.batch_size;
+  std::cout << "\ninput_info_offset : " << graph_hdr.input_info_offset;
+  std::cout << "\noutput_info_offset : " << graph_hdr.output_info_offset;
+  std::cout << "\nconst_data_offset : " << graph_hdr.const_data_offset;
+  std::cout << "\nlayer_info_offset : " << graph_hdr.layer_info_offset;
+
+  //===================================== File Input Parsing =========================================//
+
+  std::cout << "\n ===================== Executable Graph Input Info ========================\n";
+  std::cout << "\n Num_Inputs : " << graph_hdr.num_inputs;
+  auto ip_info_offset = graph_hdr.input_info_offset;
+  parse_graph_info(exe_graph, ip_info_offset, graph_hdr.num_inputs);
+
+  //===================================== File Output Parsing =========================================//
+
+  std::cout << "\n ===================== Executable Graph Output Info ========================\n";
+  std::cout << "\n Num_Outputs : " << graph_hdr.num_outputs;
+  auto op_info_offset = graph_hdr.output_info_offset;
+  parse_graph_info(exe_graph, op_info_offset, graph_hdr.num_outputs);
+
+  //===================================== File Constant Parsing =========================================//
+
+  std::cout << "\n ===================== Executable Graph Constant Info ========================\n";
+  std::cout << "\n Num_Constants : " << graph_hdr.num_constants;
+  auto c_data_offset = graph_hdr.const_data_offset;
+  parse_graph_info(exe_graph, c_data_offset, graph_hdr.num_constants, true);
+
+  //======================================= File Layer Parsing ===========================================//
+
+  std::cout << "\n ===================== Executable Graph Layer Info ========================\n";
+  std::cout << "\n Num_Layers : " << graph_hdr.num_layers;
+  auto l_info_offset = graph_hdr.layer_info_offset;
+  parse_layer_info(exe_graph, l_info_offset, graph_hdr.num_layers, c_data_offset);
 }
 
 void MWNNInferenceApi::getOutput(float* op_tensor, std::vector<int> shape) {

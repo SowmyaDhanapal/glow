@@ -29,16 +29,16 @@ MetaWareNNDeviceManager::runFunction(std::string functionName,
   RunIdentifierTy runId = runIdentifier_++;
   if (found != std::string::npos)
   {
-  auto it = mwnn_functions_.find(functionName);
-  MetaWareNNFunction *mwnn_function;
-  mwnn_function = (it->second).function;
-  auto executeErr = mwnn_function->execute(ctx.get());
-  if (executeErr) {
-    resultCB(runId, std::move(executeErr), std::move(ctx));
-    return -1;
-  }
-  resultCB(runId, Error::success(), std::move(ctx));
-  return runId;
+    auto it = mwnn_functions_.find(functionName);
+    MetaWareNNFunction *mwnn_function;
+    mwnn_function = (it->second).function;
+    auto executeErr = mwnn_function->execute(ctx.get());
+    if (executeErr) {
+      resultCB(runId, std::move(executeErr), std::move(ctx));
+      return -1;
+    }
+    resultCB(runId, Error::success(), std::move(ctx));
+    return runId;
   }
   else
   {

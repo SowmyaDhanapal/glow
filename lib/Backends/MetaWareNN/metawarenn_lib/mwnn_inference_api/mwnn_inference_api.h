@@ -5,6 +5,7 @@
 #include <vector>
 #include <fstream>
 #include "mwnn_inference_shm.h"
+#include "../executable_network/metawarenn_executable_graph.h"
 #include <memory.h>
 
 namespace metawarenn {
@@ -23,10 +24,9 @@ class MWNNInferenceApi {
     static unsigned long int available_bytes;
     static unsigned long int used_bytes;
 
-    float *input;
-    float *output;
-    float *model;
-
+    char *input;
+    char *output;
+    char* exe_graph;
 };
 
 } //metawarenn

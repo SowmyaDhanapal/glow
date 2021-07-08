@@ -1,4 +1,5 @@
 #include "metawarenn_graph.h"
+#include "op/depthwise_conv.cc"
 
 namespace metawarenn {
 
@@ -30,7 +31,7 @@ MWNNGraph::MWNNGraph(GraphProto& onnx_graph_proto, std::string graph_name) {
       auto ip_node = mwnn_input.get_node();
       mwnn_graph_nodes[ip_name] = std::move(ip_node);
       //Fills Graph Input Tensor Details - Name, Dims
-      MWNNTensor mwnn_ip_tensor(mwnn_input.get_name(), mwnn_input.get_dims());
+      MWNNTensor mwnn_ip_tensor(mwnn_input.get_name(), mwnn_input.get_type(), mwnn_input.get_dims());
       mwnn_graph_ip_tensors.emplace_back(mwnn_ip_tensor);
     }
   }
@@ -39,7 +40,7 @@ MWNNGraph::MWNNGraph(GraphProto& onnx_graph_proto, std::string graph_name) {
     mwnn_outputs.emplace_back(mwnn_output);
     op_name = mwnn_output.get_name();
     //Fills Graph Output Tensor Details - Name, Dims
-    MWNNTensor mwnn_op_tensor(mwnn_output.get_name(), mwnn_output.get_dims());
+    MWNNTensor mwnn_op_tensor(mwnn_output.get_name(), mwnn_output.get_type(), mwnn_output.get_dims());
     mwnn_graph_op_tensors.emplace_back(mwnn_op_tensor);
   }
 }
@@ -66,7 +67,7 @@ MWNNGraph::MWNNGraph(TfLiteContext* context, std::vector<int> subgraph_nodes_, s
   auto ip_node = mwnn_input.get_node();
   mwnn_graph_nodes[mwnn_input.get_name()] = std::move(ip_node);
   //Fills Graph Input Tensor Details - Name, Dims
-  MWNNTensor mwnn_ip_tensor(mwnn_input.get_name(), mwnn_input.get_dims());
+  MWNNTensor mwnn_ip_tensor(mwnn_input.get_name(), mwnn_input.get_type(), mwnn_input.get_dims());
   mwnn_graph_ip_tensors.emplace_back(mwnn_ip_tensor);
 
   //Set Graph Output Node
@@ -78,7 +79,7 @@ MWNNGraph::MWNNGraph(TfLiteContext* context, std::vector<int> subgraph_nodes_, s
   mwnn_outputs.emplace_back(mwnn_output);
   op_name = output_tensor.name;
   //Fills Graph Output Tensor Details - Name, Dims
-  MWNNTensor mwnn_op_tensor(mwnn_output.get_name(), mwnn_output.get_dims());
+  MWNNTensor mwnn_op_tensor(mwnn_output.get_name(), mwnn_output.get_type(), mwnn_output.get_dims());
   mwnn_graph_op_tensors.emplace_back(mwnn_op_tensor);
 
   for (size_t node_index = 0; node_index < subgraph_nodes_.size(); node_index++) {
@@ -452,13 +453,13 @@ MWNNGraph::MWNNGraph(Function *F, std::string subgraph_name) {
             std::string initializer_name = std::string(node_name + "shape");
             auto dims = reshape_node->getDims();
             std::vector<float> dims_vec(dims.size());
-            std::vector<int> dims_(dims.size());
+            std::vector<int> dims_;
+            dims_.push_back(dims.size());
             int i = 0;
             for(auto dim: dims){
-              dims_vec[i] = dim;
-              dims_[i++] = dim;
+              dims_vec[i++] = dim;
             }
-            metawarenn::MWNNTensor mwnn_reshape_tensor(initializer_name, dims_, ElemKind::Int32ITy, dims_vec);
+            metawarenn::MWNNTensor mwnn_reshape_tensor(initializer_name, dims_, ElemKind::Int64ITy, dims_vec);
             mwnn_initializer_tensors.emplace_back(mwnn_reshape_tensor);
             node_inputs.emplace_back(input_name);
             node_inputs.emplace_back(initializer_name);
@@ -751,7 +752,7 @@ MWNNGraph::MWNNGraph(Function *F, std::string subgraph_name) {
       mwnn_outputs.emplace_back(mwnn_output);
       op_name = global_output_name;
       //Fills Graph Output Tensor Details - Name, Dims
-      MWNNTensor mwnn_op_tensor(mwnn_output.get_name(), mwnn_output.get_dims());
+      MWNNTensor mwnn_op_tensor(mwnn_output.get_name(), mwnn_output.get_type(), mwnn_output.get_dims());
       mwnn_graph_op_tensors.emplace_back(mwnn_op_tensor);
     }
     else if(V->getName().equals(input_name)) {
@@ -759,7 +760,7 @@ MWNNGraph::MWNNGraph(Function *F, std::string subgraph_name) {
       mwnn_inputs.emplace_back(mwnn_input);
       ip_name = V->getName();
       //Fills Graph Input Tensor Details - Name, Dims
-      MWNNTensor mwnn_ip_tensor(mwnn_input.get_name(), mwnn_input.get_dims());
+      MWNNTensor mwnn_ip_tensor(mwnn_input.get_name(), mwnn_input.get_type(), mwnn_input.get_dims());
       mwnn_graph_ip_tensors.emplace_back(mwnn_ip_tensor);
     }
   }

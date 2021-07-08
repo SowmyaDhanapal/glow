@@ -12,7 +12,7 @@ MWNNSharedMemory::MWNNSharedMemory() {
       exit(1);
   }
 
-  shmp = (float*)shmat(shmid, NULL, 0);
+  shmp = (char*)shmat(shmid, NULL, 0);
   if (shmp == (void *) -1) {
       perror("Shared memory attach");
       exit(1);

@@ -13,10 +13,10 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
     {
       for (auto g_t : mwnn_graph_->get_graph_inputs()) {
         if(g_t.get_dims().size() == 4) {
-          std::cout << "\n Name : " << g_t.get_name();
+          /*std::cout << "\n Name : " << g_t.get_name();
           std::cout << "\t Dims : ";
           for (auto dim : g_t.get_dims())
-            std::cout << dim << ",";
+            std::cout << dim << ",";*/
           optimizer::ConvertLayout cl(mwnn_graph_, g_t, CHW_TO_HWC, 0);
           manager.register_pass(cl);
         }
@@ -26,10 +26,10 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
     {
       for (auto g_t : mwnn_graph_->get_graph_initializers()) {
         if(g_t.get_dims().size() == 4) {
-          std::cout << "\n Name : " << g_t.get_name();
+          /*std::cout << "\n Name : " << g_t.get_name();
           std::cout << "\t Dims : ";
           for (auto dim : g_t.get_dims())
-            std::cout << dim << ",";
+            std::cout << dim << ",";*/
           ::metawarenn::optimizer::ConvertLayout cl(mwnn_graph_, g_t, 0, HWC_TO_CHW);
           manager.register_pass(cl);
         }
@@ -38,10 +38,10 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
       if(graph_count == 1) {
         for (auto g_t : mwnn_graph_->get_graph_inputs()) {
           if(g_t.get_dims().size() == 4) {
-            std::cout << "\n Name : " << g_t.get_name();
+            /*std::cout << "\n Name : " << g_t.get_name();
             std::cout << "\t Dims : ";
             for (auto dim : g_t.get_dims())
-              std::cout << dim << ",";
+              std::cout << dim << ",";*/
             ::metawarenn::optimizer::ConvertLayout cl(mwnn_graph_, g_t, 0, HWC_TO_CHW);
             manager.register_pass(cl);
           }
@@ -57,13 +57,16 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
         manager.register_pass(fr);
       }
       else if(g_n.get_op_type() == "Transpose") {
-        LOG(INFO) << "Inside Transpose";
         optimizer::RemoveTranspose rt(mwnn_graph_, g_n);
         //std::cout << "\n MetaWareNNCC : " << rt.get_name();
         manager.register_pass(rt);
       }
     }
+    optimizer::CalculateOffset co(mwnn_graph_);
+    manager.register_pass(co);
     manager.run_passes();
+    mwnn_exe_graph_ = std::make_shared<metawarenn::MWNNExecutableGraph>(*mwnn_graph_);
+
     #if INVOKE_NNAC
       std::cout << "\n ---------------------------Graph----------------------------- \n";
       std::cout << "\n Graph Name : " << mwnn_graph_->get_name();
@@ -174,10 +177,10 @@ void MetaWareNNFunction::findIOPlaceholders(Function *F) {
       continue;
     }
     if (getOutputSave(F, V)) {
-      std::cout << "\n V->getName() in *88888 if op: " << std::string(V->getName());
+      //std::cout << "\n V->getName() in outputs_: " << std::string(V->getName());
       outputs_.push_back(V);
     } else {
-      std::cout << "\n V->getName() in *88888 elee: " << std::string(V->getName());
+      //std::cout << "\n V->getName() in inputs_: " << std::string(V->getName());
       inputs_.push_back(V);
     }
   }
@@ -221,7 +224,7 @@ Error MetaWareNNFunction::execute(ExecutionContext *context) {
 
   // ******************************************* Call to invoke the local run function *****************************************
 
-  convert_to_mwnn_format(*mwnn_graph_, graph_inputs, graph_outputs, CHW_TO_HWC);
+  //convert_to_mwnn_format(*mwnn_graph_, graph_inputs, graph_outputs, CHW_TO_HWC);
   return Error::success();
 }
 } // namespace metawarenn
