@@ -47,6 +47,7 @@ add_library(MetaWareNN
             metawarenn_lib/optimizer/remove_transpose.cc
             metawarenn_lib/optimizer/pass_manager.cc
             metawarenn_lib/optimizer/calculate_offset.cc
+            metawarenn_lib/optimizer/fuse_batchnorm.cc
             metawarenn_lib/mwnnconvert/mwnn_protobuf/cpp_wrapper/MWNN.pb.cc
             metawarenn_lib/mwnn_inference_api/mwnn_inference_api.cc
             metawarenn_lib/mwnn_inference_api/mwnn_inference_shm.cc
