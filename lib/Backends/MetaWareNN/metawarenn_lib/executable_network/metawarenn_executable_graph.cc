@@ -20,12 +20,12 @@ void fill_blob_serializer(DataSerialization &data_serializer, std::vector<MWNNTe
         auto dims = data.get_dims();
         auto tensor_values = data.get_tensor();
 
-        std::cout << "\n Name : " << name;
+        /*std::cout << "\n Name : " << name;
         std::cout << "\n Type : " << type;
         std::cout << "\n Index : " << index;
         std::cout << "\n Dims : ";
         for (auto dim : dims)
-          std::cout << dim << ",";
+          std::cout << dim << ",";*/
 
         data_serializer.append(static_cast<uint32_t>(i));
 
@@ -83,7 +83,7 @@ void fill_layer_serializer(DataSerialization &layer_serializer, std::vector<MWNN
     else if(op_type == "DepthwiseConv") {
       l_hdr.layer_type = 2;
       node = std::dynamic_pointer_cast<op::DepthwiseConv>(node);
-      }
+    }
     else if(op_type == "GlobalAveragePool")
       l_hdr.layer_type = 3;
     else if(op_type == "Add")
@@ -94,6 +94,10 @@ void fill_layer_serializer(DataSerialization &layer_serializer, std::vector<MWNN
       l_hdr.layer_type = 6;
     else if(op_type == "Softmax")
       l_hdr.layer_type = 7;
+    else if(op_type == "BatchNorm") {
+      l_hdr.layer_type = 8;
+      node = std::dynamic_pointer_cast<op::BatchNormalization>(node);
+    }
     else {
       std::cout << "\n UnSupported Layer!!!";
       exit(1);
@@ -307,6 +311,10 @@ void parse_layer_info(char *exe_graph, uint32_t offset, uint32_t num_data, uint3
       }
       std::cout << "\n Activation : " << activation;
     }
+    else if(type == "BatchNorm") {
+      auto epsilon = read_from_graph_data<float>(exe_graph, offset);
+      std::cout << "\n Epsilon : " << epsilon;
+    }
   }
 }
 
@@ -390,7 +398,7 @@ MWNNExecutableGraph::MWNNExecutableGraph(MWNNGraph mwnn_graph) {
   //====================================================================================================//
 
   //Uncomment to Dump the MetaWareNN Binary File
-  std::ofstream writeFile("/path/to/MWNNExecutableNetwork.bin", std::ios::out | std::ios::binary);
+  std::ofstream writeFile("/Path/to/MWNNExecutableNetwork.bin", std::ios::out | std::ios::binary);
   if (writeFile.is_open())
     writeFile.write(reinterpret_cast<char*>(&exe_graph[0]), b_hdr.file_size);
   writeFile.close();
@@ -403,7 +411,7 @@ void MWNNExecutableGraph::runGraph() {
   std::cout << "\n In MWNNExecutableGraph runGraph Function!!!";
 
   //Uncomment to Read the MetaWareNN Binary File
-  std::ifstream readFile("/path/to/MWNNExecutableNetwork.bin", std::ios::in | std::ios::binary);
+  std::ifstream readFile("/Path/to/MWNNExecutableNetwork.bin", std::ios::in | std::ios::binary);
   //Get size of the input binary file
   readFile.seekg(0, readFile.end);
   long size = readFile.tellg();
