@@ -26,7 +26,7 @@
 
 * #### To Build LLVM
     1. `cd ../../glow`
-    2. `./utils/build_llvm.sh`
+    2. `source ./utils/build_llvm.sh`
 
 * #### To Build Required CMake Version
     [Note]: Glow Installation is successful with CMake of version 3.16.5, So check the CMake Version using the below command,
@@ -45,18 +45,17 @@
     * Unzip and move the "libprotobuf.so" to "/path/to/glow/lib/Backends/MetaWareNN"
 
 * ### Modify the below mentioned files
-    1. Update "/glow/lib/Backends/MetaWareNN/MetaWareNNFunction.cpp" file
-        i. Set the path to store the MWNN file dumps in line no: 157
-        ii. Update the path to Glow repository in line no: 166
-        iii Set the path to evgencnn/scripts folder in line no: 170
-    2. Update "/glow/lib/Backends/MetaWareNN/metawarenn_lib/mwnnconvert/mwnn_convert.sh" file
-        i. Set the $EV_CNNMODELS_HOME path in line no: 3
-        ii. Set the absolute path for ARC/setup.sh file in line no: 4
-        iii. Update the path to Glow with MWNN support in line no: 9 & 22
-        iv. Update the path to evgencnn executable in line no: 10
-        v. Update the Imagenet images path in line no: 20
-    3. Update the "/glow/lib/Backends/MetaWareNN/metawarenn_lib/mwnn_inference_api/mwnn_inference_api.cc" file as follows:
-        i.  Set the path to evgencnn/scripts folder in line no: 51
+    1. Update "/glow/lib/Backends/MetaWareNN/MetaWareNNFunction.cpp" file  
+        i. Set the path to store the MWNN file dumps in line no: 160  
+        ii. Update the path to Glow repository in line no: 169  
+    2. Update "/glow/lib/Backends/MetaWareNN/metawarenn_lib/mwnnconvert/mwnn_convert.sh" file  
+        i. Set the $EV_CNNMODELS_HOME path in line no: 3  
+        ii. Set the absolute path for ARC/setup.sh file in line no: 4  
+        iii. Update the path to Glow with MWNN support in line no: 9 & 22  
+        iv. Update the path to evgencnn executable in line no: 10  
+        v. Update the Imagenet images path in line no: 20  
+    3. Update the "/glow/lib/Backends/MetaWareNN/metawarenn_lib/mwnn_inference_api/mwnn_inference_api.cc" file  
+        i.  Set the path to evgencnn/scripts folder in line no: 51  
 ### Configure and Build Glow
 * #### For Release Build
     * `mkdir build_Release`
