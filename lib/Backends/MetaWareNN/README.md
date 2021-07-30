@@ -50,7 +50,7 @@
         ii. Update the path to Glow repository in line no: 169  
     2. Update "/glow/lib/Backends/MetaWareNN/metawarenn_lib/mwnnconvert/mwnn_convert.sh" file  
         i. Set the $EV_CNNMODELS_HOME path in line no: 3  
-        ii. Set the absolute path for ARC/setup.sh file in line no: 4  
+        ii. Set the absolute path for ARC/cnn_tools/setup.sh file in line no: 4  
         iii. Update the path to Glow with MWNN support in line no: 9 & 22  
         iv. Update the path to evgencnn executable in line no: 10  
         v. Update the Imagenet images path in line no: 20  
