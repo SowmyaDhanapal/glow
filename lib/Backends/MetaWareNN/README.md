@@ -41,6 +41,19 @@
     * `sudo make install`
 
 * ### Protobuf library dependencies
+    * To build protobuf:
+        1. `wget https://github.com/protocolbuffers/protobuf/releases/download/v3.11.3/protobuf-all-3.11.3.tar.gz`  
+        2. `tar -xf protobuf-all-3.11.3.tar.gz`  
+        3. `cd protobuf-3.11.3`  
+        4. `./configure`  
+        5. `make`  
+        6. `make check`  
+        7. `sudo make install`  
+        8. `cd ./python`  
+        9. `python3 setup.py build`  
+        10. `python3 setup.py test`  
+        11. `sudo python3 setup.py install`  
+        12. `sudo ldconfig`  
     * Download protobuf library version 3.11.3 from the egnyte link https://multicorewareinc.egnyte.com/dl/FjljPlgjlI
     * Unzip and move the "libprotobuf.so" to "/path/to/glow/lib/Backends/MetaWareNN"
 
