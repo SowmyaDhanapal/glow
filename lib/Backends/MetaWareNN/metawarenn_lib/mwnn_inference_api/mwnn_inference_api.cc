@@ -48,7 +48,7 @@ void MWNNInferenceApi::prepareOutput(std::vector<int> shape) {
 void MWNNInferenceApi::prepareGraph(std::string name) {
   std::cout << "\n In prepareGraph";
   std::ifstream in;
-  in.open("/home/mcw/sowmya/GLOW/Forked_Repo/glow/lib/Backends/MetaWareNN/Inference/MWNNExecutableNetwork.bin", std::ios::in | std::ios::binary);
+  in.open("/Path/to/MWNNExecutableNetwork.bin", std::ios::in | std::ios::binary);
   if(in.is_open()) {
     std::streampos start = in.tellg();
     in.seekg(0, std::ios::end);

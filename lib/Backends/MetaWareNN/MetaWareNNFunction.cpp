@@ -11,13 +11,13 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
     optimizer::PassManager manager;
     if(CHW_TO_HWC)
     {
-      for (auto g_t : mwnn_graph_->get_graph_inputs()) {
+      for (auto g_t : mwnn_graph_->get_graph_ip_tensor()) {
         if(g_t.get_dims().size() == 4) {
           /*std::cout << "\n Name : " << g_t.get_name();
           std::cout << "\t Dims : ";
           for (auto dim : g_t.get_dims())
             std::cout << dim << ",";*/
-          optimizer::ConvertLayout cl(mwnn_graph_, g_t, CHW_TO_HWC, 0);
+          optimizer::ConvertLayout cl(mwnn_graph_, g_t, CHW_TO_HWC, 0, false);
           manager.register_pass(cl);
         }
       }
@@ -30,19 +30,19 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
           std::cout << "\t Dims : ";
           for (auto dim : g_t.get_dims())
             std::cout << dim << ",";*/
-          ::metawarenn::optimizer::ConvertLayout cl(mwnn_graph_, g_t, 0, HWC_TO_CHW);
+          ::metawarenn::optimizer::ConvertLayout cl(mwnn_graph_, g_t, 0, HWC_TO_CHW, true);
           manager.register_pass(cl);
         }
       }
       //Subgraph from other backends is already in CHW order
       if(graph_count == 1) {
-        for (auto g_t : mwnn_graph_->get_graph_inputs()) {
+        for (auto g_t : mwnn_graph_->get_graph_ip_tensor()) {
           if(g_t.get_dims().size() == 4) {
             /*std::cout << "\n Name : " << g_t.get_name();
             std::cout << "\t Dims : ";
             for (auto dim : g_t.get_dims())
               std::cout << dim << ",";*/
-            ::metawarenn::optimizer::ConvertLayout cl(mwnn_graph_, g_t, 0, HWC_TO_CHW);
+            ::metawarenn::optimizer::ConvertLayout cl(mwnn_graph_, g_t, 0, HWC_TO_CHW, false);
             manager.register_pass(cl);
           }
         }
@@ -70,90 +70,101 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
     #if INVOKE_NNAC
       std::cout << "\n ---------------------------Graph----------------------------- \n";
       std::cout << "\n Graph Name : " << mwnn_graph_->get_name();
-      ::MWNN::MWNNGraphProto mwnn_graph_proto;
-      mwnn_graph_proto.set_name(mwnn_graph_->get_name());
-      mwnn_graph_proto.set_graph_input(mwnn_graph_->get_graph_ip_name());
-      mwnn_graph_proto.set_graph_output(mwnn_graph_->get_graph_op_name());
+    ::MWNN::MWNNGraphProto mwnn_graph_proto;
+    mwnn_graph_proto.set_name(mwnn_graph_->get_name());
+    for (auto g_ip : mwnn_graph_->get_graph_ip_names())
+      mwnn_graph_proto.add_ip_name((g_ip));
+    for (auto g_op : mwnn_graph_->get_graph_op_names())
+      mwnn_graph_proto.add_op_name((g_op));
 
-      //std::cout << "\n -----------------------Graph Inputs-------------------------- \n";
-      for (auto g_ip : mwnn_graph_->get_graph_inputs()) {
-        /*std::cout << "\n Input Name : " << g_ip.get_name();
-        std::cout << "\n Data Type : " << g_ip.get_type();
-        std::cout << "\n Input Dims : ";*/
-        auto input = mwnn_graph_proto.add_input();
-        input->set_name(g_ip.get_name());
-        input->set_type(g_ip.get_type());
-
-        for (auto dim : g_ip.get_dims())
-          input->add_dims(dim);
+    std::cout << "\n -----------------------Graph Inputs-------------------------- \n";
+    for (auto g_ip : mwnn_graph_->get_graph_ip_tensor()) {
+      std::cout << "\n Input Name : " << g_ip.get_name();
+      std::cout << "\n Data Type : " << g_ip.get_type();
+      std::cout << "\n Input Dims : ";
+      auto input = mwnn_graph_proto.add_input();
+      input->set_name(g_ip.get_name());
+      input->set_type(g_ip.get_type());
+      for (auto dim : g_ip.get_dims()) {
+        std::cout << dim << ",";
+        input->add_dims(dim);
       }
-      //std::cout << "\n -----------------------Graph Outputs-------------------------- \n";
-      for (auto g_op : mwnn_graph_->get_graph_outputs()) {
-        /*std::cout << "\n Output Name : " << g_op.get_name();
-        std::cout << "\n Data Type : " << g_op.get_type();
-        std::cout << "\n Output Dims : ";*/
-        auto output = mwnn_graph_proto.add_output();
-        output->set_name(g_op.get_name());
-        output->set_type(g_op.get_type());
-        for (auto dim : g_op.get_dims())
-          output->add_dims(dim);
-
+    }
+    std::cout << "\n -----------------------Graph Outputs-------------------------- \n";
+    for (auto g_op : mwnn_graph_->get_graph_op_tensor()) {
+      std::cout << "\n Output Name : " << g_op.get_name();
+      std::cout << "\n Data Type : " << g_op.get_type();
+      std::cout << "\n Output Dims : ";
+      auto output = mwnn_graph_proto.add_output();
+      output->set_name(g_op.get_name());
+      output->set_type(g_op.get_type());
+      for (auto dim : g_op.get_dims()) {
+        std::cout << dim << ",";
+        output->add_dims(dim);
       }
-      //std::cout << "\n -----------------------Graph Nodes-------------------------- \n";
-      for (auto g_n : mwnn_graph_->get_graph_nodes()) {
-        /*std::cout << "\n ================================================================ \n";
-        std::cout << "\n Node Name : " << g_n.get_name();
-        std::cout << "\n Op Type : " << g_n.get_op_type();*/
-        auto node = mwnn_graph_proto.add_node();
-        node->set_name(g_n.get_name());
-        auto op_type = g_n.get_op_type();
-        node->set_op_type(op_type == "DepthwiseConv" ? "Conv" : op_type);
-        for (auto n_ip : g_n.get_inputs()) {
-          //std::cout << "\n Input : n_ip : " << n_ip;
-          node->add_input((n_ip));
-        }
-        for (auto n_op : g_n.get_outputs()) {
-          //std::cout << "\n Output : n_op : " << n_op;
-          node->add_output((n_op));
-        }
-        //std::cout << "\n ---------------------------------------------------------------- ";
-        for (auto attribute : g_n.get_attributes()) {
-          /*std::cout << "\n Attribute Name : " << attribute.get_name();
-          std::cout << "\n Attribute Data Type : " << attribute.get_type();
-          std::cout << "\n Attribute Data : ";*/
-          auto attr = node->add_attribute();
-          attr->set_name(attribute.get_name());
-          attr->set_type(attribute.get_type());
-          if(attribute.get_type() == 3 || attribute.get_type() == 8) {
-            for(int i = 0; i < attribute.get_string_data().size(); i++){
-              auto data = attr->add_data();
-              data = &attribute.get_string_data()[i];
-              //std::cout << attribute.get_string_data()[i] << ",";
-            }
-          }
-          else {
-            for(int i = 0; i < attribute.get_data().size(); i++) {
-              //std::cout << attribute.get_data()[i] << ",";
-              attr->add_ints(attribute.get_data()[i]);
-            }
+    }
+    std::cout << "\n -----------------------Graph Nodes-------------------------- \n";
+    for (auto g_n : mwnn_graph_->get_graph_nodes()) {
+      std::cout << "\n ================================================================ \n";
+      std::cout << "\n Node Name : " << g_n.get_name();
+      std::cout << "\n Op Type : " << g_n.get_op_type();
+      auto node = mwnn_graph_proto.add_node();
+      node->set_name(g_n.get_name());
+      auto op_type = g_n.get_op_type();
+      node->set_op_type(op_type == "DepthwiseConv" ? "Conv" : op_type);
+      for (auto n_ip : g_n.get_inputs()) {
+        std::cout << "\n Input : n_ip : " << n_ip;
+        node->add_ip_name((n_ip));
+      }
+      for (auto n_op : g_n.get_outputs()) {
+        std::cout << "\n Output : n_op : " << n_op;
+        node->add_op_name((n_op));
+      }
+      std::cout << "\n ---------------------------------------------------------------- ";
+      for (auto attribute : g_n.get_attributes()) {
+        std::cout << "\n Attribute Name : " << attribute.get_name();
+        std::cout << "\n Attribute Data : ";
+        auto attr = node->add_attribute();
+        attr->set_name(attribute.get_name());
+        attr->set_type(attribute.get_type());
+        if(attribute.get_type() == 6) { //int data
+          for(int i = 0; i < attribute.get_int_data().size(); i++){
+            attr->add_int_data(attribute.get_int_data()[i]);
+            std::cout << attribute.get_int_data()[i] << ",";
           }
         }
-      }
-      //std::cout << "\n -----------------------Graph Tensors-------------------------- \n";
-      for (auto g_t : mwnn_graph_->get_graph_initializers()) {
-        auto initializer = mwnn_graph_proto.add_initializer();
-        initializer->set_name(g_t.get_name());
-        initializer->set_data_type(g_t.get_type());
-        /*std::cout << "\n Name : " << g_t.get_name();
-        std::cout << "\n Type : " << g_t.get_type();
-        std::cout << "\n Dim : ";*/
-        for (auto dim : g_t.get_dims()){
-          //std::cout << dim << ",";
-          initializer->add_dims(dim);
+        else if(attribute.get_type() == 3) { //float data
+          for(int i = 0; i < attribute.get_float_data().size(); i++){
+            attr->add_float_data(attribute.get_float_data()[i]);
+            std::cout << attribute.get_float_data()[i] << ",";
+          }
         }
-        for (auto t_val : g_t.get_tensor())
-          initializer->add_float_data(t_val);
+        else if(attribute.get_type() == 12) { //string data
+          for(int i = 0; i < attribute.get_string_data().size(); i++){
+            attr->add_string_data(attribute.get_string_data()[i]);
+            std::cout << attribute.get_string_data()[i] << ",";
+          }
+        }
       }
+    }
+    std::cout << "\n -----------------------Graph Tensors-------------------------- \n";
+    for (auto g_t : mwnn_graph_->get_graph_initializers()) {
+      auto initializer = mwnn_graph_proto.add_initializer();
+      initializer->set_name(g_t.get_name());
+      initializer->set_type(g_t.get_type());
+      std::cout << "\n Name : " << g_t.get_name();
+      std::cout << "\n Type : " << g_t.get_type();
+      std::cout << "\n Dims : ";
+      for (auto dim : g_t.get_dims()) {
+        std::cout << dim << ",";
+        initializer->add_dims(dim);
+      }
+      //std::cout << "\n Tensor values : ";
+      for (auto t_val : g_t.get_tensor()) {
+        //std::cout << t_val << ",";
+        initializer->add_float_data(t_val);
+      }
+    }
 
       std::cout << "\n Graph Name : " << mwnn_graph_->get_name();
       std::string g_name = mwnn_graph_->get_name();
@@ -199,19 +210,19 @@ Error MetaWareNNFunction::execute(ExecutionContext *context) {
   }
   for (const auto &ph : this->getOutputs()) {
     auto *tensor = bindings->get(ph);
-    graph_outputs[mwnn_graph_->get_graph_op_name()] = (float*)tensor->getUnsafePtr();
+    graph_outputs[mwnn_graph_->get_graph_op_names()[0]] = (float*)tensor->getUnsafePtr();
 
   }
 
   // **************************************** Calls to invoke the MetaWareNN Inference API ************************************
   MWNNInferenceApi mwapi;
 
-  std::string ip_name = mwnn_graph_->get_graph_ip_name();
+  std::vector<std::string> ip_names = mwnn_graph_->get_graph_ip_names();
   auto ip_shape = mwnn_graph_->get_graph_ip_tensor()[0].get_dims();
 
-  mwapi.prepareInput(graph_inputs[ip_name], ip_shape);
+  mwapi.prepareInput(graph_inputs[ip_names[0]], ip_shape);
 
-  std::string op_name = mwnn_graph_->get_graph_op_name();
+  std::vector<std::string> op_names = mwnn_graph_->get_graph_op_names();
   auto op_shape = mwnn_graph_->get_graph_op_tensor()[0].get_dims();
 
   mwapi.prepareOutput(op_shape);
@@ -220,7 +231,7 @@ Error MetaWareNNFunction::execute(ExecutionContext *context) {
 
   mwapi.runGraph();
 
-  mwapi.getOutput(graph_outputs[op_name], op_shape);
+  mwapi.getOutput(graph_outputs[op_names[0]], op_shape);
 
   // ******************************************* Call to invoke the local run function *****************************************
 
