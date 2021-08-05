@@ -24,8 +24,9 @@
     6. `sudo make install`
 
 * #### To Build LLVM
-    1. `cd glow`
-    2. `source ./utils/build_llvm.sh`
+    1. `sudo apt-get install libxml2-dev libxml2`  
+    2. `cd glow`  
+    3. `source ./utils/build_llvm.sh`  
 
 * #### To Build Required CMake Version
     [Note]: Glow Installation is successful with CMake of version 3.16.5, So check the CMake Version using the below command,
