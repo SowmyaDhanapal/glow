@@ -67,30 +67,20 @@
    1. Update the "/glow/lib/Backends/MetaWareNN/metawarenn_lib/executable_network/metawarenn_executable_graph.cc" with path to store the MWNNExecutableNetwork.bin in line no: 401 & line no: 414
    2. Update the "/glow/lib/Backends/MetaWareNN/metawarenn_lib/mwnn_inference_api/mwnn_inference_api.cc" file with saved file path of MWNNExecutableNetwork.bin in line no: 51
 * #### To Invoke the NNAC & EVGENCNN Script to generate the EV Binary file
-   1. Update "/glow/lib/Backends/MetaWareNN/MetaWareNNFunction.cpp" file
-        i. Set the path to store the MWNN file dumps in line no: 171
-        ii. Update the path to Glow repository in line no: 180
-   2. Update the "/glow/lib/Backends/MetaWareNN/MetaWareNNFunction.h" file as follows:
-      i. Set the INVOKE_NNAC macro to 1 in line no: 16
-   3. Update "/glow/lib/Backends/MetaWareNN/metawarenn_lib/mwnnconvert/mwnn_convert.sh" file
-        i. Set the $EV_CNNMODELS_HOME path in line no: 3
-        ii. Set the absolute path for ARC/cnn_tools/setup.sh file in line no: 4
-        iii. Update the path to Glow with MWNN support in line no: 9 & 20
-        iv. Update the path to evgencnn executable in line no: 10
-        v. Update the Imagenet images path in line no: 18
-   [Note] : Generated EV Binary file for MetaWareNN SubGraph will store in evgencnn/scripts folder.
-* ### Modify the below mentioned files
-    1. Update "/glow/lib/Backends/MetaWareNN/MetaWareNNFunction.cpp" file
-        i. Set the path to store the MWNN file dumps in line no: 171
-        ii. Update the path to Glow repository in line no: 180
-    2. Update "/glow/lib/Backends/MetaWareNN/metawarenn_lib/mwnnconvert/mwnn_convert.sh" file
-        i. Set the $EV_CNNMODELS_HOME path in line no: 3
-        ii. Set the absolute path for ARC/cnn_tools/setup.sh file in line no: 4
-        iii. Update the path to Glow with MWNN support in line no: 9 & 20
-        iv. Update the path to evgencnn executable in line no: 10
-        v. Update the Imagenet images path in line no: 18
-    3. Update the "/glow/lib/Backends/MetaWareNN/metawarenn_lib/mwnn_inference_api/mwnn_inference_api.cc" file
-        i.  Set the path to evgencnn/scripts folder in line no: 51
+   1. Update "/glow/lib/Backends/MetaWareNN/MetaWareNNFunction.cpp" file  
+        i. Set the path to store the MWNN file dumps in line no: 171  
+        ii. Update the path to Glow repository in line no: 180  
+   2. Update the "/glow/lib/Backends/MetaWareNN/MetaWareNNFunction.h" file    
+      i. Set the INVOKE_NNAC macro to 1 in line no: 16  
+   3. Update "/glow/lib/Backends/MetaWareNN/metawarenn_lib/mwnnconvert/mwnn_convert.sh" file  
+        i. Set the $EV_CNNMODELS_HOME path in line no: 3  
+        ii. Set the absolute path for ARC/cnn_tools/setup.sh file in line no: 4  
+        iii. Update the path to Glow with MWNN support in line no: 9 & 22  
+        iv. Update the path to evgencnn executable in line no: 10  
+        v. Update the Imagenet images path in line no: 20  
+        vi. Update `evgencnn` to `evgencnn.pyc` if using the release (not development) version of ARC/cnn_tools in line no: 24  
+   [Note] : Generated EV Binary file for MetaWareNN SubGraph will be stored in evgencnn/scripts folder.  
+  
 ### Configure and Build Glow
 * #### For Release Build
     * `mkdir build_Release`
