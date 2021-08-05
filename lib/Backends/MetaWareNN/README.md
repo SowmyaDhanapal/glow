@@ -2,9 +2,9 @@
 ### Get Glow
 1. `git clone https://github.com/SowmyaDhanapal/glow.git`
 2. `cd glow`
-3. `git submodule update --init --recursive`
-4. `git checkout metawarenn_dev` (Created metawarenn_dev branch from this master branch commit - 916b8914e0585c220b6186a241db0845c8eff5a9)
-
+3. `git checkout metawarenn_dev` (Created metawarenn_dev branch from this master branch commit - 916b8914e0585c220b6186a241db0845c8eff5a9)
+4. `git submodule update --init --recursive`  
+  
 ### Create a Python Virtual Environment
 1. `sudo pip3 install virtualenv`
 2. `virtualenv --python=/usr/bin/python3.6 ./venv_glow`
@@ -12,9 +12,8 @@
 
 ### Steps to Build & Install Dependency Packages
 * #### Python Packages
-    1. `pip install torch`
+    1. `pip install torch torchvision`
     2. `pip install numpy`
-    3. `pip install torchvision`
 
 * #### To Build FMT
     1. `git clone https://github.com/fmtlib/fmt`
@@ -25,7 +24,7 @@
     6. `sudo make install`
 
 * #### To Build LLVM
-    1. `cd ../../glow`
+    1. `cd glow`
     2. `source ./utils/build_llvm.sh`
 
 * #### To Build Required CMake Version
@@ -47,7 +46,7 @@
         1. `wget https://github.com/protocolbuffers/protobuf/releases/download/v3.11.3/protobuf-all-3.11.3.tar.gz`
         2. `tar -xf protobuf-all-3.11.3.tar.gz`
         3. `cd protobuf-3.11.3`
-        4. `./configure`
+        4. `./configure [--prefix=install_protobuf_folder]`
         5. `make`
         6. `make check`
         7. `sudo make install`
@@ -56,10 +55,15 @@
         10. `python3 setup.py test`
         11. `sudo python3 setup.py install`
         12. `sudo ldconfig`
+        13. `# if not installed with sudo`  
+            `export PATH=install_protobuf_folder/bin:${PATH}`  
+            `export LD_LIBRARY_PATH=install_protobuf_folder/lib:${LD_LIBRARY_PATH}`  
+            `export CPLUS_INCLUDE_PATH=install_protobuf_folder/include:${CPLUS_INCLUDE_PATH}`  
+           
     * Download protobuf library version 3.11.3 from the egnyte link https://multicorewareinc.egnyte.com/dl/FjljPlgjlI
     * Unzip and move the "libprotobuf.so" to "/path/to/glow/lib/Backends/MetaWareNN"
 
-* #### To Load MetaWareNN Executable Graph in Shared Memory[Default flow]
+* #### To Load MetaWareNN Executable Graph in Shared Memory [Default flow]
    1. Update the "/glow/lib/Backends/MetaWareNN/metawarenn_lib/executable_network/metawarenn_executable_graph.cc" with path to store the MWNNExecutableNetwork.bin in line no: 401 & line no: 414
    2. Update the "/glow/lib/Backends/MetaWareNN/metawarenn_lib/mwnn_inference_api/mwnn_inference_api.cc" file with saved file path of MWNNExecutableNetwork.bin in line no: 51
 * #### To Invoke the NNAC & EVGENCNN Script to generate the EV Binary file
