@@ -66,7 +66,7 @@
 
 * ### Other necessary dependencies
   ```
-  sudo apt-get install clang clang-8 cmake graphviz libpng-dev \
+  sudo apt-get install graphviz libpng-dev \
     ninja-build wget \
     opencl-headers libgoogle-glog-dev libboost-all-dev \
     libdouble-conversion-dev libevent-dev libssl-dev libgflags-dev \
