@@ -64,6 +64,15 @@
     * Download protobuf library version 3.11.3 from the egnyte link https://multicorewareinc.egnyte.com/dl/FjljPlgjlI
     * Unzip and move the "libprotobuf.so" to "/path/to/glow/lib/Backends/MetaWareNN"
 
+* ### Other necessary dependencies
+  ```
+  sudo apt-get install clang clang-8 cmake graphviz libpng-dev \
+    ninja-build wget \
+    opencl-headers libgoogle-glog-dev libboost-all-dev \
+    libdouble-conversion-dev libevent-dev libssl-dev libgflags-dev \
+    libjemalloc-dev libpthread-stubs0-dev
+  ```
+
 * #### To Load MetaWareNN Executable Graph in Shared Memory [Default flow]
    1. Update the "/glow/lib/Backends/MetaWareNN/metawarenn_lib/executable_network/metawarenn_executable_graph.cc" with path to store the MWNNExecutableNetwork.bin in line no: 401 & line no: 414
    2. Update the "/glow/lib/Backends/MetaWareNN/metawarenn_lib/mwnn_inference_api/mwnn_inference_api.cc" file with saved file path of MWNNExecutableNetwork.bin in line no: 51
