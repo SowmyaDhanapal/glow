@@ -1,4 +1,8 @@
 ## Steps to Build & Run GLOW MetaWareNN Backend
+
+### For Docker Setup
+##### Check on the /glow/lib/Backends/MetaWareNN/Docker/README.md
+
 ### Get Glow
 1. `git clone https://github.com/SowmyaDhanapal/glow.git`
 2. `cd glow`
