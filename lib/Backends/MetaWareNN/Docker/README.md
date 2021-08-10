@@ -1,9 +1,9 @@
 ## Steps to use the docker setup to build and run the Glow
-1. To create a docker container with Ubuntu 18.04 as base, run
-        * `sudo bash Docker.sh`
-2. Copy the shell script to docker folder, 
-        * `scp uname@ip_address:/path/to/local/machine/glow_deps.sh /path/to/docker/folder`
-3. Run the shell script to install the Glow related dependencies,  
+1. To create a docker container with Ubuntu 18.04 as base, run  
+        * `sudo bash Docker.sh`  
+2. Copy the shell script to docker folder   
+        * `scp uname@ip_address:/path/to/local/machine/glow_deps.sh /path/to/docker/folder`  
+3. Run the shell script to install the Glow related dependencies  
         * `cd /path/to/docker/folder`  
         * `bash glow_deps.sh`  
         [Note]: The above commands will install all glow related dependencies including, llvm, protobuf, etc., and clones the glow repository. It will take more than an hour to finish the installation.  
