@@ -7,7 +7,8 @@
         * `cd /path/to/docker/folder`  
         * `bash glow_deps.sh`  
         [Note]: The above commands will install all glow related dependencies including llvm, clang, cmake, protobuf, fmt etc., and clones the glow repository. It will take about an hour to finish the installation.  
-4. To build the glow,  
+4. To build the glow  
+        * Download the lib_protobuf_MWNN_PROTO.zip from https://multicorewareinc.egnyte.com/dl/FjljPlgjlI/   
         * `scp uname@ip_address:/path/to/local/machine/lib_protobuf_MWNN_PROTO.zip /path/to/docker/folder/glow/lib/Backends/MetaWareNN`  
         * `cd /path/to/docker/folder/glow/lib/Backends/MetaWareNN`  
         * `unzip /path/to/docker/folder/glow/lib/Backends/MetaWareNN/lib_protobuf_MWNN_PROTO.zip`  
@@ -16,8 +17,9 @@
         * `cd build_Release`  
         * `cmake -G Ninja -DCMAKE_BUILD_TYPE=Release ../../glow -DLLVM_DIR=/path/to/docker/folder/glow/llvm_install/lib/cmake/llvm`  
         * `ninja all`  
-### To run the Inference,
-Changes in the Glow source code needs the last command (`ninja all`) of step-4, to rebuild the code  
+ 
+### To run the Inference
+Note: Changes in the Glow source code needs the last command (`ninja all`) of step 4. to rebuild the code  
  * #### To Load MetaWareNN Executable Graph in Shared Memory [Default flow]  
    1. Update the "/glow/lib/Backends/MetaWareNN/metawarenn_lib/executable_network/metawarenn_executable_graph.cc" with path to store the MWNNExecutableNetwork.bin in line no: 401 & line no: 414  
    2. Update the "/glow/lib/Backends/MetaWareNN/metawarenn_lib/mwnn_inference_api/mwnn_inference_api.cc" file with saved file path of MWNNExecutableNetwork.bin in line no: 51  
