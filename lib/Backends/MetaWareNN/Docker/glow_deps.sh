@@ -8,8 +8,8 @@ apt-get -y install gedit vim
 apt-get -y install libssl-dev
 apt-get -y install graphviz libpng-dev ninja-build wget opencl-headers libgoogle-glog-dev libboost-all-dev libdouble-conversion-dev libevent-dev libssl-dev libgflags-dev libjemalloc-dev libpthread-stubs0-dev
 apt-get -y install python3-pip
+python3 -m pip install --upgrade pip
 pip3 install torch torchvision
-pip3 install pathlib
 apt-get -y install libxml2-dev libxml2
 
 wget https://github.com/Kitware/CMake/releases/download/v3.16.5/cmake-3.16.5.tar.gz
