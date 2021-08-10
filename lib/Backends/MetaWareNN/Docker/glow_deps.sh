@@ -10,6 +10,7 @@ apt-get -y install graphviz libpng-dev ninja-build wget opencl-headers libgoogle
 apt-get -y install python3-pip
 pip3 install torch torchvision
 apt-get -y install libxml2-dev libxml2
+
 wget https://github.com/Kitware/CMake/releases/download/v3.16.5/cmake-3.16.5.tar.gz
 tar -zxvf cmake-3.16.5.tar.gz
 cd cmake-3.16.5
@@ -17,6 +18,7 @@ cd cmake-3.16.5
 make
 make install
 cd ..
+
 wget https://github.com/protocolbuffers/protobuf/releases/download/v3.11.3/protobuf-all-3.11.3.tar.gz
 tar -xf protobuf-all-3.11.3.tar.gz
 cd protobuf-3.11.3
@@ -32,6 +34,7 @@ export PATH=/usr/local/bin:${PATH}
 export LD_LIBRARY_PATH=/usr/local/lib:${LD_LIBRARY_PATH}
 export CPLUS_INCLUDE_PATH=/usr/local/include:${CPLUS_INCLUDE_PATH}
 cd ../..
+
 git clone https://github.com/fmtlib/fmt
 mkdir fmt/build
 cd fmt/build
@@ -39,6 +42,7 @@ cmake ..
 make
 make install
 cd ../..
+
 git clone https://github.com/SowmyaDhanapal/glow.git
 cd glow
 git checkout metawarenn_dev
