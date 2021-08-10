@@ -19,7 +19,7 @@
         * `ninja all`  
  
 ### To run the Inference
-Note: Changes in the Glow source code needs the last command (`ninja all`) of step 4. to rebuild the code  
+Note: Changes in the Glow source code needs the last step 4. command `ninja all` to rebuild the code  
  * #### To Load MetaWareNN Executable Graph in Shared Memory [Default flow]  
    1. Update the "/glow/lib/Backends/MetaWareNN/metawarenn_lib/executable_network/metawarenn_executable_graph.cc" with path to store the MWNNExecutableNetwork.bin in line no: 401 & line no: 414  
    2. Update the "/glow/lib/Backends/MetaWareNN/metawarenn_lib/mwnn_inference_api/mwnn_inference_api.cc" file with saved file path of MWNNExecutableNetwork.bin in line no: 51  
