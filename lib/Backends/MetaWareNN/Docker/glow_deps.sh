@@ -4,7 +4,7 @@ apt -y update
 apt -y install git
 apt-get -y install wget
 apt-get -y install unzip
-apt-get -y install gedit
+apt-get -y install gedit vim
 apt-get -y install libssl-dev
 apt-get -y install graphviz libpng-dev ninja-build wget opencl-headers libgoogle-glog-dev libboost-all-dev libdouble-conversion-dev libevent-dev libssl-dev libgflags-dev libjemalloc-dev libpthread-stubs0-dev
 apt-get -y install python3-pip
