@@ -6,7 +6,7 @@
 3. Run the shell script to install the Glow related dependencies  
         * `cd /path/to/docker/folder`  
         * `bash glow_deps.sh`  
-        [Note]: The above commands will install all glow related dependencies including llvm, clang, cmake, protobuf, fmt etc., and clones the glow repository. It will take more than an hour to finish the installation.  
+        [Note]: The above commands will install all glow related dependencies including llvm, clang, cmake, protobuf, fmt etc., and clones the glow repository. It will take about an hour to finish the installation.  
 4. To build the glow,  
         * `scp uname@ip_address:/path/to/local/machine/lib_protobuf_MWNN_PROTO.zip /path/to/docker/folder/glow/lib/Backends/MetaWareNN`  
         * `cd /path/to/docker/folder/glow/lib/Backends/MetaWareNN`  
