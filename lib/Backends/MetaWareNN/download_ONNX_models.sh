@@ -1,3 +1,5 @@
+mkdir onnx_models
+cd onnx_models
 wget https://github.com/onnx/models/raw/master/vision/classification/alexnet/model/bvlcalexnet-7.onnx
 wget https://github.com/onnx/models/raw/master/vision/classification/caffenet/model/caffenet-7.onnx
 wget https://github.com/onnx/models/raw/master/vision/classification/densenet-121/model/densenet-7.onnx
@@ -25,4 +27,4 @@ wget https://github.com/onnx/models/raw/master/vision/classification/vgg/model/v
 wget https://github.com/onnx/models/raw/master/vision/classification/vgg/model/vgg19-bn-7.onnx
 wget https://github.com/onnx/models/raw/master/vision/classification/vgg/model/vgg19-caffe2-7.onnx
 wget https://github.com/onnx/models/raw/master/vision/classification/zfnet-512/model/zfnet512-7.onnx
-#wget https://github.com/onnx/models/raw/master/vision/classification/mobilenet/model/mobilenetv2-7.onnx
+wget https://github.com/onnx/models/raw/master/vision/classification/mobilenet/model/mobilenetv2-7.onnx

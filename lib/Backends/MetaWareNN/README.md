@@ -79,7 +79,7 @@
   ```
 
 * #### To Load MetaWareNN Executable Graph in Shared Memory [Default flow]
-   1. Update the "/glow/lib/Backends/MetaWareNN/metawarenn_lib/executable_network/metawarenn_executable_graph.cc" with path to store the MWNNExecutableNetwork.bin in line no: 401 & line no: 414
+   1. Update the "/glow/lib/Backends/MetaWareNN/metawarenn_lib/executable_network/metawarenn_executable_graph.cc" with path to store the MWNN Executable graph binary in line no: 801
    2. Update the "/glow/lib/Backends/MetaWareNN/metawarenn_lib/mwnn_inference_api/mwnn_inference_api.cc" file with saved file path of MWNNExecutableNetwork.bin in line no: 51
 * #### To Invoke the NNAC & EVGENCNN Script to generate the EV Binary file
    1. Update "/glow/lib/Backends/MetaWareNN/MetaWareNNFunction.cpp" file  
@@ -115,16 +115,12 @@
 * `./image-classifier ../../tests/images/imagenet/dog_207.png -image-mode=0to1 -m=/path/to/mobilenetv2-7.onnx -model-input-name=data -cpu-memory=100000 -load-device-configs="../tests/runtime_test/heterogeneousConfigs.yaml"`
 
 ## To run multiple ONNX models from model zoo
-* Create a directory to download onnx models and move to the directory
-* `cd /path/to/store/onnx_model_dir`
-* Download the models from ONNX model zoo by running the below shell script
-    *   `sh /path/to/glow/lib/Backends/MetaWareNN/download_ONNX_models.sh`
-* Set the path to downloaded onnx model directory in glow/lib/Backends/MetaWareNN/run_ONNX_models.sh file line no: 1
 * `cd /path/to/glow/build_Release/bin`
+* Download the models from ONNX model zoo by running the below shell script. (This script will create onnx_models folder inside glow/build_Release/bin & download models inside onnx_models/ folder)
+    *   `sh /path/to/glow/lib/Backends/MetaWareNN/download_ONNX_models.sh`
+* Set the path to glow in glow/lib/Backends/MetaWareNN/run_ONNX_models.sh file line no: 1. (This step will set the downloaded models path.)
 * Run the ONNX models from model zoo in metawarenn backend with below command
     *   `sh /path/to/glow/lib/Backends/MetaWareNN/run_ONNX_models.sh`
-
-* Note: MobileNet-V2 model is only passed through execution flow, since MLI kernels are yet to be added for additional operators in the models from model zoo. So, recently updated MobileNet-V2 model(with additional operators) from model zoo is excluded in this shell script.
 
 ### To Run Standalone Inference using MetaWareNN Backend
 * `cd /path/to/glow/lib/Backends/MetaWareNN/Inference`
