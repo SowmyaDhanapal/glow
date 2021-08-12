@@ -119,8 +119,8 @@ class MWNNNode {
       }
       else if(op_type == "Clip") {
         return std::make_shared<op::Clip>(name, inputs, outputs,
-                                                  get_attribute_value_float("min")[0],
-                                                  get_attribute_value_float("max")[0]);
+                                                  get_attribute_value_float("min"),
+                                                  get_attribute_value_float("max"));
       }
       else if(op_type == "Mul") {
         return std::make_shared<op::Mul>(name, inputs, outputs);
@@ -184,8 +184,8 @@ class MWNNNode {
       }
       else if(op_type == "BatchNormalization") {
           return std::make_shared<op::BatchNormalization>(name, inputs, outputs,
-                                                        get_attribute_value_float("epsilon")[0],
-                                                        get_attribute_value_float("momentum")[0]);
+                                                        get_attribute_value_float("epsilon"),
+                                                        get_attribute_value_float("momentum"));
       }
       else if(op_type == "BiasAdd") {
           return std::make_shared<op::BiasAdd>(name, inputs, outputs);

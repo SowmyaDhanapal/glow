@@ -3,13 +3,13 @@
 ## Use Docker Setup to build and run the Glow
 ##### Check on the [/glow/lib/Backends/MetaWareNN/Docker/README.md](https://github.com/SowmyaDhanapal/glow/blob/metawarenn_dev/lib/Backends/MetaWareNN/Docker/README.md)
 
-## No Docker Process 
+## No Docker Process
 ### Get Glow
 1. `git clone https://github.com/SowmyaDhanapal/glow.git`
 2. `cd glow`
 3. `git checkout metawarenn_dev` (Created metawarenn_dev branch from this master branch commit - 916b8914e0585c220b6186a241db0845c8eff5a9)
-4. `git submodule update --init --recursive`  
-  
+4. `git submodule update --init --recursive`
+
 ### Create a Python Virtual Environment
 1. `sudo pip3 install virtualenv`
 2. `virtualenv --python=/usr/bin/python3.6 ./venv_glow`
@@ -29,9 +29,9 @@
     6. `sudo make install`
 
 * #### To Build LLVM
-    1. `sudo apt-get install libxml2-dev libxml2`  
-    2. `cd glow`  
-    3. `source ./utils/build_llvm.sh`  
+    1. `sudo apt-get install libxml2-dev libxml2`
+    2. `cd glow`
+    3. `source ./utils/build_llvm.sh`
 
 * #### To Build Required CMake Version
     [Note]: Glow Installation is successful with CMake of version 3.16.5, So check the CMake Version using the below command,
@@ -61,11 +61,11 @@
         10. `python3 setup.py test`
         11. `sudo python3 setup.py install`
         12. `sudo ldconfig`
-        13. `# if not installed with sudo`  
-            `export PATH=install_protobuf_folder/bin:${PATH}`  
-            `export LD_LIBRARY_PATH=install_protobuf_folder/lib:${LD_LIBRARY_PATH}`  
-            `export CPLUS_INCLUDE_PATH=install_protobuf_folder/include:${CPLUS_INCLUDE_PATH}`  
-           
+        13. `# if not installed with sudo`
+            `export PATH=install_protobuf_folder/bin:${PATH}`
+            `export LD_LIBRARY_PATH=install_protobuf_folder/lib:${LD_LIBRARY_PATH}`
+            `export CPLUS_INCLUDE_PATH=install_protobuf_folder/include:${CPLUS_INCLUDE_PATH}`
+
     * Download protobuf library version 3.11.3 from the egnyte link https://multicorewareinc.egnyte.com/dl/FjljPlgjlI
     * Unzip and move the "libprotobuf.so" to "/path/to/glow/lib/Backends/MetaWareNN"
 
@@ -79,23 +79,22 @@
   ```
 
 * #### To Load MetaWareNN Executable Graph in Shared Memory [Default flow]
-   1. Update the "/glow/lib/Backends/MetaWareNN/metawarenn_lib/executable_network/metawarenn_executable_graph.cc" with path to store the MWNN Executable graph binary in line no: 801
+   1. Update the "/glow/lib/Backends/MetaWareNN/metawarenn_lib/executable_network/metawarenn_executable_graph.cc" with path to store the MWNN Executable graph binary in line no: 826
    2. Update the "/glow/lib/Backends/MetaWareNN/metawarenn_lib/mwnn_inference_api/mwnn_inference_api.cc" file with saved file path of MWNNExecutableNetwork.bin in line no: 51
 * #### To Invoke the NNAC & EVGENCNN Script to generate the EV Binary file
-   1. Update "/glow/lib/Backends/MetaWareNN/MetaWareNNFunction.cpp" file  
-        i. Set the path to store the MWNN file dumps in line no: 171  
-        ii. Update the path to Glow repository in line no: 180  
-   2. Update the "/glow/lib/Backends/MetaWareNN/MetaWareNNFunction.h" file    
-      i. Set the INVOKE_NNAC macro to 1 in line no: 16  
-   3. Update "/glow/lib/Backends/MetaWareNN/metawarenn_lib/mwnnconvert/mwnn_convert.sh" file  
-        i. Set the $EV_CNNMODELS_HOME path in line no: 3  
-        ii. Set the absolute path for ARC/cnn_tools/setup.sh file in line no: 4  
-        iii. Update the path to Glow with MWNN support in line no: 9 & 22  
-        iv. Update the path to evgencnn executable in line no: 10  
-        v. Update the Imagenet images path in line no: 20  
-        vi. Update `evgencnn` to `evgencnn.pyc` if using the release (not development) version of ARC/cnn_tools in line no: 24  
-   [Note] : Generated EV Binary file for MetaWareNN SubGraph will be stored in evgencnn/scripts folder.  
-  
+   1. Update "/glow/lib/Backends/MetaWareNN/MetaWareNNFunction.cpp" file
+        i. Update the path to Glow repository in line no: 176 & 193
+   2. Update the "/glow/lib/Backends/MetaWareNN/MetaWareNNFunction.h" file
+      i. Set the INVOKE_NNAC macro to 1 in line no: 16
+   3. Update "/glow/lib/Backends/MetaWareNN/metawarenn_lib/mwnnconvert/mwnn_convert.sh" file
+        i. Set the $EV_CNNMODELS_HOME path in line no: 3
+        ii. Set the absolute path for ARC/cnn_tools/setup.sh file in line no: 4
+        iii. Update the path to Glow with MWNN support in line no: 9 & 22
+        iv. Update the path to evgencnn executable in line no: 10
+        v. Update the Imagenet images path in line no: 20
+        vi. Update `evgencnn` to `evgencnn.pyc` if using the release (not development) version of ARC/cnn_tools in line no: 24
+   [Note] : Generated EV Binary file for MetaWareNN SubGraph will be stored in evgencnn/scripts folder.
+
 ### Configure and Build Glow
 * #### For Release Build
     * `mkdir build_Release`

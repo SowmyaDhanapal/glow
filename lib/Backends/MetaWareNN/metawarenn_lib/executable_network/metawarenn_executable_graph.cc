@@ -415,10 +415,26 @@ void parse_layer_info(char *exe_graph, uint32_t offset, uint32_t num_data, uint3
       std::cout << "\n Activation : " << activation;
     }
     else if(type == "BatchNormalization") {
-      auto epsilon = read_from_graph_data<float>(exe_graph, offset);
-      std::cout << "\n Epsilon : " << epsilon;
-      auto momentum = read_from_graph_data<float>(exe_graph, offset);
-      std::cout << "\n Momentum : " << momentum;
+      auto e_len = read_from_graph_data<uint32_t>(exe_graph, offset);
+      std::vector<int32_t> epsilon;
+      for (int j = 0; j < e_len; j++) {
+        auto e = read_from_graph_data<float>(exe_graph, offset);
+        epsilon.push_back(e);
+      }
+      auto m_len = read_from_graph_data<uint32_t>(exe_graph, offset);
+      std::vector<int32_t> momentum;
+      for (int j = 0; j < m_len; j++) {
+        auto m = read_from_graph_data<float>(exe_graph, offset);
+        momentum.push_back(m);
+      }
+      std::cout << "\n Epsilon : ";
+      for (auto e : epsilon) {
+        std::cout << e << ", ";
+      }
+      std::cout << "\n Momentum : ";
+      for (auto m : momentum) {
+        std::cout << m << ", ";
+      }
     }
     else if(type == "MaxPool" || type == "AveragePool") {
       auto psize_len = read_from_graph_data<uint32_t>(exe_graph, offset);
@@ -710,10 +726,18 @@ void parse_layer_info(char *exe_graph, uint32_t offset, uint32_t num_data, uint3
       }
     }
     else if(type == "Clip") {
-      auto min = read_from_graph_data<float>(exe_graph, offset);
-      auto max = read_from_graph_data<float>(exe_graph, offset);
-      std::cout << "\n Min : " << min;
-      std::cout << "\n Max : " << max;
+      auto min_len = read_from_graph_data<uint32_t>(exe_graph, offset);
+      std::vector<float> min;
+      for (int j = 0; j < min_len; j++) {
+        auto m = read_from_graph_data<float>(exe_graph, offset);
+        min.push_back(m);
+      }
+      auto max_len = read_from_graph_data<uint32_t>(exe_graph, offset);
+      std::vector<float> max;
+      for (int j = 0; j < max_len; j++) {
+        auto m = read_from_graph_data<float>(exe_graph, offset);
+        max.push_back(m);
+      }
     }
   }
 }

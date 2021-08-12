@@ -2,6 +2,12 @@
 
 namespace metawarenn {
 
+bool IsPathExist(const std::string &s)
+{
+  struct stat buffer;
+  return (stat (s.c_str(), &buffer) == 0);
+}
+
 MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function *F)
     : CompiledFunction(std::move(bundle)) {
     findIOPlaceholders(F);
@@ -166,9 +172,16 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
       }
     }
 
-      std::cout << "\n Graph Name : " << mwnn_graph_->get_name();
-      std::string g_name = mwnn_graph_->get_name();
-      auto mwnn_op_path = "/path/to/store/mwnn_dump_files/";
+    std::string g_name = mwnn_graph_->get_name();
+    auto mwnn_op_path = "/path/to/glow/EV_DUMPS/";
+    if(!IsPathExist(mwnn_op_path)) {
+      int check = mkdir(mwnn_op_path, 0777);
+      if(check != 0)
+      {
+        std::cout << "\nPlease check the directory path to store the serialized binary!!!!!";
+        exit(1);
+      }
+    }
       auto mwnn_proto_bin = std::string(mwnn_op_path) + std::string(g_name) + ".bin";
 
       int fp = open(mwnn_proto_bin.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);

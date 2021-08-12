@@ -14,8 +14,6 @@ FILE=$op_path"/nnac_op/"$graph_name"/"$graph_name"_convert_optimized.prototxt"
 if [ -f "$FILE" ]; then
     prototxt_path=$FILE
 fi
-
-echo $subgraph_counter
 if [ "$subgraph_counter" = "1" ]; then
   input_path="/path/to/cnn_models/caffe_models/images/ImageNet/jpeg"
 else
