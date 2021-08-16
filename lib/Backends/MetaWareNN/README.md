@@ -115,9 +115,10 @@
 
 ## To run multiple ONNX models from model zoo
 * `cd /path/to/glow/build_Release/bin`
-* Download the models from ONNX model zoo by running the below shell script. (This script will create onnx_models folder inside glow/build_Release/bin & download models inside onnx_models/ folder)
+* Download the models from ONNX model zoo by running the below shell script. 
+(This script will create a folder `onnx_models` inside glow/build_Release/bin and download models into it.)
     *   `sh /path/to/glow/lib/Backends/MetaWareNN/download_ONNX_models.sh`
-* Set the path to glow in glow/lib/Backends/MetaWareNN/run_ONNX_models.sh file line no: 1. (This step will set the downloaded models path.)
+* Set the path to onnx_models in glow/lib/Backends/MetaWareNN/run_ONNX_models.sh file line no: 1.
 * Run the ONNX models from model zoo in metawarenn backend with below command
     *   `sh /path/to/glow/lib/Backends/MetaWareNN/run_ONNX_models.sh`
 
