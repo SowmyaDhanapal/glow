@@ -5,10 +5,16 @@
 
 ## No Docker Process
 ### Get Glow
-1. `git clone https://github.com/SowmyaDhanapal/glow.git`
+1. `git clone --recursive https://github.com/SowmyaDhanapal/glow.git`
 2. `cd glow`
 3. `git checkout metawarenn_dev` (Created metawarenn_dev branch from this master branch commit - 916b8914e0585c220b6186a241db0845c8eff5a9)
 4. `git submodule update --init --recursive`
+5. Move to metawarenn_lib submodule and checkout to metawarenn_dev branch
+    a. `cd lib/Backends/MetaWareNN/metawarenn_lib`
+    b. `git checkout metawarenn_dev`
+6. Once initial submodule setup is done with above commands, use this command to pull from the submodule in future
+    i.  `cd /path/to/glow`
+    ii. `git pull --recurse-submodules`
 
 ### Create a Python Virtual Environment
 1. `sudo pip3 install virtualenv`
@@ -79,7 +85,7 @@
   ```
 
 * #### To Load MetaWareNN Executable Graph in Shared Memory [Default flow]
-   1. Update tensorflow/lite/delegates/MetaWareNN/builders/metawarenn_lib/metawarenn_common.h file
+   1. Update lib/Backends/MetaWareNN/metawarenn_lib/metawarenn_common.h file
         a. Set Macro ONNX to 0 and GLOW to 1 in line number 4 and 6
    2. Set the absolute path to glow in glow/lib/Backends/MetaWareNN/env.sh line no: 5
 * #### To Invoke the NNAC & EVGENCNN Script to generate the EV Binary file  
