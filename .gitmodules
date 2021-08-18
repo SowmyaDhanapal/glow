@@ -22,3 +22,6 @@
 [submodule "thirdparty/folly"]
 	path = thirdparty/folly
 	url = https://github.com/facebook/folly.git
+[submodule "lib/Backends/MetaWareNN/metawarenn_lib"]
+	path = lib/Backends/MetaWareNN/metawarenn_lib
+	url = https://github.com/SowmyaDhanapal/metawarenn_lib.git
