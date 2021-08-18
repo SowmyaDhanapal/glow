@@ -2,11 +2,6 @@
 
 namespace metawarenn {
 
-bool IsPathExist(const std::string &s)
-{
-  struct stat buffer;
-  return (stat (s.c_str(), &buffer) == 0);
-}
 
 MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function *F)
     : CompiledFunction(std::move(bundle)) {
@@ -173,26 +168,30 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
     }
 
     std::string g_name = mwnn_graph_->get_name();
-    auto mwnn_op_path = "/path/to/glow/EV_DUMPS/";
-    if(!IsPathExist(mwnn_op_path)) {
+    char* mwnn_op_path = nullptr;
+    mwnn_op_path = getenv("NNAC_DUMPS_PATH");
+    if(!IsPathExist(std::string(mwnn_op_path))) {
       int check = mkdir(mwnn_op_path, 0777);
-      if(check != 0)
-      {
+      if(check != 0) {
         std::cout << "\nPlease check the directory path to store the serialized binary!!!!!";
         exit(1);
       }
     }
-      auto mwnn_proto_bin = std::string(mwnn_op_path) + std::string(g_name) + ".bin";
+    auto mwnn_proto_bin = std::string(mwnn_op_path) + std::string(g_name) + ".bin";
 
-      int fp = open(mwnn_proto_bin.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
-      std::cout << fp;
-      std::cout << mwnn_graph_proto.SerializeToFileDescriptor(fp);
-      close(fp);
+    int fp = open(mwnn_proto_bin.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    std::cout << fp;
+    std::cout << mwnn_graph_proto.SerializeToFileDescriptor(fp);
+    close(fp);
 
-      std::cout << "\n\n=================Initiating NNAC python script via shell script======================\n";
-      std::string cmd = "bash /path/to/glow/lib/Backends/MetaWareNN/metawarenn_lib/mwnnconvert/mwnn_convert.sh " + mwnn_proto_bin + " " + mwnn_op_path + " " + g_name + " " + std::to_string(graph_count);
-      const char *command = cmd.c_str();
-      system(command);
+    char* mwnn_lib_path = nullptr;
+    mwnn_lib_path = getenv("METAWARENN_LIB_PATH");
+    if(!IsPathExist(std::string(mwnn_lib_path)))
+      std::cout << "\nPlease check the MetaWareNN Library path!!!";
+    std::cout << "\n\n=================Initiating NNAC python script via shell script======================\n";
+    std::string cmd = "bash " + std::string(mwnn_lib_path) +"/mwnnconvert/mwnn_convert.sh " + mwnn_proto_bin + " " + mwnn_op_path + " " + g_name + " " + std::to_string(graph_count);
+    const char *command = cmd.c_str();
+    system(command);
     #endif
 }
 void MetaWareNNFunction::findIOPlaceholders(Function *F) {

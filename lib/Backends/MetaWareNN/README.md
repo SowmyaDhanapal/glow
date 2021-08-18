@@ -79,20 +79,11 @@
   ```
 
 * #### To Load MetaWareNN Executable Graph in Shared Memory [Default flow]
-   1. Update the "/glow/lib/Backends/MetaWareNN/metawarenn_lib/executable_network/metawarenn_executable_graph.cc" with path to store the MWNN Executable graph binary in line no: 826  
-   2. Update the "/glow/lib/Backends/MetaWareNN/metawarenn_lib/mwnn_inference_api/mwnn_inference_api.cc" file with saved file path of MWNNExecutableNetwork.bin in line no: 51  
+   1. Update tensorflow/lite/delegates/MetaWareNN/builders/metawarenn_lib/metawarenn_common.h file
+        a. Set Macro ONNX to 0 and GLOW to 1 in line number 4 and 6
+   2. Set the absolute path to glow in glow/lib/Backends/MetaWareNN/env.sh line no: 5
 * #### To Invoke the NNAC & EVGENCNN Script to generate the EV Binary file  
-   1. Update "/glow/lib/Backends/MetaWareNN/MetaWareNNFunction.cpp" file  
-        i. Update the path to Glow repository in line no: 176 & 193  
-   2. Update the "/glow/lib/Backends/MetaWareNN/MetaWareNNFunction.h" file  
-      i. Set the INVOKE_NNAC macro to 1 in line no: 16  
-   3. Update "/glow/lib/Backends/MetaWareNN/metawarenn_lib/mwnnconvert/mwnn_convert.sh" file  
-        i. Set the $EV_CNNMODELS_HOME path in line no: 3  
-        ii. Set the absolute path for ARC/cnn_tools/setup.sh file in line no: 4  
-        iii. Update the path to Glow with MWNN support in line no: 9 & 22  
-        iv. Update the path to evgencnn executable in line no: 10  
-        v. Update the Imagenet images path in line no: 20  
-        vi. Update `evgencnn` to `evgencnn.pyc` if using the release (not development) version of ARC/cnn_tools in line no: 24  
+   1. Set the absolute path to ARC/ directory in glow/lib/Backends/MetaWareNN/env.sh line no: 11
    [Note] : Generated EV Binary file for MetaWareNN SubGraph will be stored in evgencnn/scripts folder.  
 
 ### Configure and Build Glow
@@ -110,6 +101,7 @@
 ### To Run Inference using MetaWareNN Backend
 * Download the MobileNet-V2 model using the zip file from egnyte link - https://multicorewareinc.egnyte.com/dl/2JAUNXlGg0 and unzip the same
 * `cd /path/to/glow/build_Release/bin`  
+* `source /path/to/glow/lib/Backends/MetaWareNN/env.sh`
 * `ipcs`  # List the shared memory details along with shmid  
 * `ipcrm -m [shmid]`  # Adjust shared memory allocation size  
 * `./image-classifier ../../tests/images/imagenet/cat_285.png -image-mode=0to1 -m=/path/to/mobilenetv2-7.onnx -model-input-name=data -cpu-memory=100000 -backend=MetaWareNN`  
@@ -117,6 +109,7 @@
 
 ## To run multiple ONNX models from model zoo
 * `cd /path/to/glow/build_Release/bin`
+* `source /path/to/glow/lib/Backends/MetaWareNN/env.sh`
 * Download the models from ONNX model zoo by running the below shell script. 
 (This script will create a folder `onnx_models` inside glow/build_Release/bin and download models into it.)
     *   `sh /path/to/glow/lib/Backends/MetaWareNN/download_ONNX_models.sh`
