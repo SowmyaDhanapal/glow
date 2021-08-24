@@ -5,16 +5,24 @@
 
 ## No Docker Process
 ### Get Glow
-1. `git clone --recursive https://github.com/SowmyaDhanapal/glow.git`
-2. `cd glow`
-3. `git checkout metawarenn_dev` (Created metawarenn_dev branch from this master branch commit - 916b8914e0585c220b6186a241db0845c8eff5a9)
-4. `git submodule update --init --recursive`
-5. Move to metawarenn_lib submodule and checkout to metawarenn_dev branch
-    a. `cd lib/Backends/MetaWareNN/metawarenn_lib`
-    b. `git checkout metawarenn_dev`
-6. Once initial submodule setup is done with above commands, use this command to pull from the submodule in future
-    i.  `cd /path/to/glow`
-    ii. `git pull --recurse-submodules`
+  ### Initial Setup
+    1. `git clone --recursive https://github.com/SowmyaDhanapal/glow.git`
+    2. `cd glow`
+    3. `git checkout metawarenn_dev` (Created metawarenn_dev branch from this master branch commit - 916b8914e0585c220b6186a241db0845c8eff5a9)
+    4. `git submodule update --init --recursive`
+    5. In case if glow is cloned without metawarenn_lib submodule, use below commands to pull MetaWareNN Library Submodule for the first time
+        i.  `git pull`
+        ii. `git submodule update --init --recursive`
+        iii. Move to metawarenn_lib submodule and checkout to metawarenn_dev branch
+            a. `cd lib/Backends/MetaWareNN/metawarenn_lib`
+            b. `git checkout metawarenn_dev`
+
+### Using Existing Setup to pull submodule changes [Docker / Non-Docker]
+    1. `cd glow`
+    2. `git pull`
+    3. `cd lib/Backends/MetaWareNN/metawarenn_lib`
+    4. `git checkout metawarenn_dev`
+    5. `git pull`
 
 ### Create a Python Virtual Environment
 1. `sudo pip3 install virtualenv`
@@ -85,12 +93,11 @@
   ```
 
 * #### To Load MetaWareNN Executable Graph in Shared Memory [Default flow]
-   1. Update lib/Backends/MetaWareNN/metawarenn_lib/metawarenn_common.h file
-        a. Set Macro ONNX to 0 and GLOW to 1 in line number 4 and 6
-   2. Set the absolute path to glow in glow/lib/Backends/MetaWareNN/env.sh line no: 5
-* #### To Invoke the NNAC & EVGENCNN Script to generate the EV Binary file  
-   1. Set the absolute path to ARC/ directory in glow/lib/Backends/MetaWareNN/env.sh line no: 11
-   [Note] : Generated EV Binary file for MetaWareNN SubGraph will be stored in evgencnn/scripts folder.  
+   1. Set the absolute path to glow in glow/lib/Backends/MetaWareNN/env.sh line no: 5
+* #### To Invoke the NNAC & EVGENCNN Script to generate the EV Binary file
+   1. Enable the `INVOKE_NNAC` macro in glow/lib/Backends/MetaWareNN/MetaWareNNFunction.h line no: 19
+   2. Set the absolute path to ARC/ directory in glow/lib/Backends/MetaWareNN/env.sh line no: 11
+   [Note] : Generated EV Binary file for MetaWareNN SubGraph will be stored in evgencnn/scripts folder and all intermediate files will get stored in `/path/to/glow/NNAC_DUMPS` folder
 
 ### Configure and Build Glow
 * #### For Release Build
@@ -116,12 +123,11 @@
 ## To run multiple ONNX models from model zoo
 * `cd /path/to/glow/build_Release/bin`
 * `source /path/to/glow/lib/Backends/MetaWareNN/env.sh`
-* Download the models from ONNX model zoo by running the below shell script. 
-(This script will create a folder `onnx_models` inside glow/build_Release/bin and download models into it.)
-    *   `sh /path/to/glow/lib/Backends/MetaWareNN/download_ONNX_models.sh`
-* Set the path to onnx_models in glow/lib/Backends/MetaWareNN/run_ONNX_models.sh file line no: 1.
+* Download the models from ONNX model zoo by running the below shell script.
+(This script will create a folder `onnx_models` inside glow/ directory and download models into it.)
+    *   `sh $FRAMEWORK_PATH/lib/Backends/MetaWareNN/download_ONNX_models.sh`
 * Run the ONNX models from model zoo in metawarenn backend with below command
-    *   `sh /path/to/glow/lib/Backends/MetaWareNN/run_ONNX_models.sh`
+    *   `sh $FRAMEWORK_PATH/lib/Backends/MetaWareNN/run_ONNX_models.sh`
 
 ### To Run Standalone Inference using MetaWareNN Backend (deprecated)
 * `cd /path/to/glow/lib/Backends/MetaWareNN/Inference`

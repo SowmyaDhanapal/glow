@@ -1,4 +1,4 @@
-model_path="/Path/to/glow/build_Release/bin/onnx_models/"
+model_path=$FRAMEWORK_PATH"/onnx_models/"
 image_path="../../tests/images/imagenet/cat_285.png"
 ./image-classifier $image_path -image-mode=0to1 -m=$model_path"bvlcalexnet-7.onnx" -model-input-name=data_0 -cpu-memory=100000 -backend=MetaWareNN
 ./image-classifier $image_path -image-mode=0to1 -m=$model_path"googlenet-7.onnx" -model-input-name=data_0 -cpu-memory=100000 -backend=MetaWareNN

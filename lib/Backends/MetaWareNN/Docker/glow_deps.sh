@@ -44,7 +44,7 @@ make
 make install
 cd ../..
 
-git clone https://github.com/SowmyaDhanapal/glow.git
+git clone --recursive https://github.com/SowmyaDhanapal/glow.git
 cd glow
 git checkout metawarenn_dev
 git submodule update --init --recursive
@@ -52,3 +52,5 @@ source ./utils/build_llvm.sh
 apt install -y clang-6.0
 ln -s /usr/bin/clang-6.0 /usr/bin/clang
 ln -s /usr/bin/clang++-6.0 /usr/bin/clang++
+cd lib/Backends/MetaWareNN/metawarenn_lib
+git checkout metawarenn_dev

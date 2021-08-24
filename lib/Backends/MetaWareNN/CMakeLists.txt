@@ -3,7 +3,6 @@ add_library(MetaWareNN
             MetaWareNNFactory.cpp
             MetaWareNNFunction.cpp
             MetaWareNNDeviceManager.cpp
-            metawarenn_lib/metawarenn_graph.cc
             metawarenn_lib/metawarenn_tensor.cc
             metawarenn_lib/metawarenn_node.cc
             metawarenn_lib/metawarenn_value_info.cc
