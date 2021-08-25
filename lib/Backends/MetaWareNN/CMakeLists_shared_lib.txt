@@ -1,0 +1,16 @@
+add_library(MetaWareNN
+            MetaWareNN.cpp
+            MetaWareNNFactory.cpp
+            MetaWareNNFunction.cpp
+            MetaWareNNDeviceManager.cpp
+            metawarenn_lib/mwnnconvert/mwnn_protobuf/cpp_wrapper/MWNN.pb.cc)
+
+set(METAWARENN_LIB "${CMAKE_CURRENT_SOURCE_DIR}/metawarenn_lib/lib/libmwnn.so")
+set(PROTOBUF_LIB "${CMAKE_CURRENT_SOURCE_DIR}/metawarenn_lib/lib/libprotobuf.so")
+target_link_libraries(MetaWareNN
+                      Backend
+                      -lrt
+                      ${PROTOBUF_LIB}
+                      ${METAWARENN_LIB})
+
+set(linked_backends ${linked_backends} MetaWareNN PARENT_SCOPE)

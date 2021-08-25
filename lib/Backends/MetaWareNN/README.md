@@ -80,9 +80,6 @@
             `export LD_LIBRARY_PATH=install_protobuf_folder/lib:${LD_LIBRARY_PATH}`
             `export CPLUS_INCLUDE_PATH=install_protobuf_folder/include:${CPLUS_INCLUDE_PATH}`
 
-    * Download protobuf library version 3.11.3 from the egnyte link https://multicorewareinc.egnyte.com/dl/FjljPlgjlI
-    * Unzip and move the "libprotobuf.so" to "/path/to/glow/lib/Backends/MetaWareNN"
-
 * ### Other necessary dependencies
   ```
   sudo apt-get install graphviz libpng-dev \
@@ -97,7 +94,13 @@
 * #### To Invoke the NNAC & EVGENCNN Script to generate the EV Binary file
    1. Enable the `INVOKE_NNAC` macro in glow/lib/Backends/MetaWareNN/MetaWareNNFunction.h line no: 19
    2. Set the absolute path to ARC/ directory in glow/lib/Backends/MetaWareNN/env.sh line no: 11
+   3. Set the absolute path to cnn_models/ directory in glow/lib/Backends/MetaWareNN/env.sh line no: 12
    [Note] : Generated EV Binary file for MetaWareNN SubGraph will be stored in evgencnn/scripts folder and all intermediate files will get stored in `/path/to/glow/NNAC_DUMPS` folder
+* #### To use metawarenn_lib as shared library
+   1. Rename lib/Backends/MetaWareNN/CMakeLists.txt to CMakeLists_original.txt
+      `mv lib/Backends/MetaWareNN/CMakeLists.txt lib/Backends/MetaWareNN/CMakeLists_original.txt`
+   2. Rename lib/Backends/MetaWareNN/CMakeLists_shared_lib.txt to CMakeLists.txt
+      `mv lib/Backends/MetaWareNN/CMakeLists_shared_lib.txt lib/Backends/MetaWareNN/CMakeLists.txt`
 
 ### Configure and Build Glow
 * #### For Release Build
