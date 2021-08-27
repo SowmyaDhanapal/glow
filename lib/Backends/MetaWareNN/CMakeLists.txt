@@ -5,7 +5,6 @@ add_library(MetaWareNN
             MetaWareNNDeviceManager.cpp
             metawarenn_lib/metawarenn_tensor.cc
             metawarenn_lib/metawarenn_node.cc
-            metawarenn_lib/metawarenn_value_info.cc
             metawarenn_lib/metawarenn_attribute.cc
             metawarenn_lib/metawarenn_utils.cc
             metawarenn_lib/kernels/helpers/mli_helpers.cc

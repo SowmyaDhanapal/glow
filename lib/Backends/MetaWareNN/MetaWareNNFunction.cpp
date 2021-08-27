@@ -479,17 +479,15 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
       dims[2] = int(glow_dims[2]);
       dims[0] = int(glow_dims[0]);
       if (getOutputSave(F, V)) {
-        metawarenn::MWNNValueInfo mwnn_output(global_output_name, dims, get_mwnn_type_glow(data_type));
         mwnn_graph_->set_graph_op_names(global_output_name);
         //Fills Graph Output Tensor Details - Name, Dims
-        MWNNTensor mwnn_op_tensor(mwnn_output.get_name(), mwnn_output.get_type(), mwnn_output.get_dims());
+        MWNNTensor mwnn_op_tensor(global_output_name, get_mwnn_type_glow(data_type), dims);
         mwnn_graph_->set_graph_op_tensor(mwnn_op_tensor);
       }
       else if(V->getName().equals(input_name)) {
-        metawarenn::MWNNValueInfo mwnn_input(V->getName(), dims, get_mwnn_type_glow(data_type));
         mwnn_graph_->set_graph_ip_names(V->getName());
         //Fills Graph Input Tensor Details - Name, Dims
-        MWNNTensor mwnn_ip_tensor(mwnn_input.get_name(), mwnn_input.get_type(), mwnn_input.get_dims());
+        MWNNTensor mwnn_ip_tensor(V->getName(), get_mwnn_type_glow(data_type), dims);
         mwnn_graph_->set_graph_ip_tensor(mwnn_ip_tensor);
       }
     }
