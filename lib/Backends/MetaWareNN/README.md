@@ -116,12 +116,10 @@
 
 ### To Run Inference using MetaWareNN Backend
 * Download the MobileNet-V2 model using the zip file from egnyte link - https://multicorewareinc.egnyte.com/dl/2JAUNXlGg0 and unzip the same
-* `cd /path/to/glow/build_Release/bin`  
+* `cd /path/to/glow/build_Release/bin`
 * `source /path/to/glow/lib/Backends/MetaWareNN/env.sh`
-* `ipcs`  # List the shared memory details along with shmid  
-* `ipcrm -m [shmid]`  # Adjust shared memory allocation size  
-* `./image-classifier ../../tests/images/imagenet/cat_285.png -image-mode=0to1 -m=/path/to/mobilenetv2-7.onnx -model-input-name=data -cpu-memory=100000 -backend=MetaWareNN`  
-* `./image-classifier ../../tests/images/imagenet/dog_207.png -image-mode=0to1 -m=/path/to/mobilenetv2-7.onnx -model-input-name=data -cpu-memory=100000 -load-device-configs="../tests/runtime_test/heterogeneousConfigs.yaml"`  
+* `./image-classifier ../../tests/images/imagenet/cat_285.png -image-mode=0to1 -m=/path/to/mobilenetv2-7.onnx -model-input-name=data -cpu-memory=100000 -backend=MetaWareNN`
+* `./image-classifier ../../tests/images/imagenet/dog_207.png -image-mode=0to1 -m=/path/to/mobilenetv2-7.onnx -model-input-name=data -cpu-memory=100000 -load-device-configs="../tests/runtime_test/heterogeneousConfigs.yaml"`
 
 ## To run multiple ONNX models from model zoo
 * `cd /path/to/glow/build_Release/bin`
