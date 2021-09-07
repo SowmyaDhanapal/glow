@@ -62,7 +62,7 @@ add_library(MetaWareNN
             metawarenn_lib/mwnn_inference_api/mwnn_inference_shm.cc
             metawarenn_lib/executable_network/metawarenn_executable_graph.cc
             metawarenn_lib/executable_network/metawarenn_serialization.cc)
-set(PROTOBUF_LIB "${CMAKE_CURRENT_SOURCE_DIR}/libprotobuf.so")
+set(PROTOBUF_LIB "${CMAKE_CURRENT_SOURCE_DIR}/metawarenn_lib/lib/libprotobuf.so")
 target_link_libraries(MetaWareNN
                       Backend
                       -lrt
