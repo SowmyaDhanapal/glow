@@ -5,6 +5,14 @@
 
 ## No Docker Process
 ### Get Glow
+
+  #### Install git lfs
+    * Check git lfs installation with this command `git lfs --version`
+    * If not installed, run below commands to install it.
+      * `wget https://github.com/git-lfs/git-lfs/releases/download/v2.13.3/git-lfs-linux-amd64-v2.13.3.tar.gz`
+      * `tar -xf git-lfs-linux-amd64-v2.13.3.tar.gz`
+      * `chmod 755 install.sh`
+      * `./install.sh`
   ### Initial Setup
     1. `git clone --recursive https://github.com/SowmyaDhanapal/glow.git`
     2. `cd glow`
@@ -16,6 +24,8 @@
         iii. Move to metawarenn_lib submodule and checkout to metawarenn_dev branch
             a. `cd lib/Backends/MetaWareNN/metawarenn_lib`
             b. `git checkout metawarenn_dev`
+            c. `git lfs install` #Initializes git lfs in metawarenn_lib submodule
+            d. `git lfs pull`
 
 ### Using Existing Setup to pull submodule changes [Docker / Non-Docker]
     1. `cd glow`
@@ -23,6 +33,7 @@
     3. `cd lib/Backends/MetaWareNN/metawarenn_lib`
     4. `git checkout metawarenn_dev`
     5. `git pull`
+    6. `git lfs pull`
 
 ### Create a Python Virtual Environment
 1. `sudo pip3 install virtualenv`
