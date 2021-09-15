@@ -5,14 +5,6 @@
 
 ## No Docker Process
 ### Get Glow
-
-  #### Install git lfs
-    * Check git lfs installation with this command `git lfs --version`
-    * If not installed, run below commands to install it.
-      * `wget https://github.com/git-lfs/git-lfs/releases/download/v2.13.3/git-lfs-linux-amd64-v2.13.3.tar.gz`
-      * `tar -xf git-lfs-linux-amd64-v2.13.3.tar.gz`
-      * `chmod 755 install.sh`
-      * `./install.sh`
   ### Initial Setup
     1. `git clone --recursive https://github.com/SowmyaDhanapal/glow.git`
     2. `cd glow`
@@ -24,8 +16,6 @@
         iii. Move to metawarenn_lib submodule and checkout to metawarenn_dev branch
             a. `cd lib/Backends/MetaWareNN/metawarenn_lib`
             b. `git checkout metawarenn_dev`
-            c. `git lfs install` #Initializes git lfs in metawarenn_lib submodule
-            d. `git lfs pull`
 
 ### Using Existing Setup to pull submodule changes [Docker / Non-Docker]
     1. `cd glow`
@@ -33,7 +23,6 @@
     3. `cd lib/Backends/MetaWareNN/metawarenn_lib`
     4. `git checkout metawarenn_dev`
     5. `git pull`
-    6. `git lfs pull`
 
 ### Create a Python Virtual Environment
 1. `sudo pip3 install virtualenv`
@@ -99,19 +88,30 @@
     libdouble-conversion-dev libevent-dev libssl-dev libgflags-dev \
     libjemalloc-dev libpthread-stubs0-dev
   ```
-
+* #### Download & store the protobuf file
+  ```
+   1. Download the dependent protobuf library from egnyte link https://multicorewareinc.egnyte.com/dl/kpRzPTSFdx and place it in `glow/lib/Backends/MetaWareNN/metawarenn_lib/lib`
+  ```
 * #### To Load MetaWareNN Executable Graph in Shared Memory [Default flow]
+  ```
    1. Set the absolute path to glow in glow/lib/Backends/MetaWareNN/env.sh line no: 5
+  ```
 * #### To Invoke the NNAC & EVGENCNN Script to generate the EV Binary file
+  ```
    1. Enable the `INVOKE_NNAC` macro in glow/lib/Backends/MetaWareNN/MetaWareNNFunction.h line no: 19
    2. Set the absolute path to ARC/ directory in glow/lib/Backends/MetaWareNN/env.sh line no: 11
    3. Set the absolute path to cnn_models/ directory in glow/lib/Backends/MetaWareNN/env.sh line no: 12
    [Note] : Generated EV Binary file for MetaWareNN SubGraph will be stored in evgencnn/scripts folder and all intermediate files will get stored in `/path/to/glow/NNAC_DUMPS` folder
+  ```
 * #### To use metawarenn_lib as shared library
+  ```
    1. Rename lib/Backends/MetaWareNN/CMakeLists.txt to CMakeLists_original.txt
       `mv lib/Backends/MetaWareNN/CMakeLists.txt lib/Backends/MetaWareNN/CMakeLists_original.txt`
    2. Rename lib/Backends/MetaWareNN/CMakeLists_shared_lib.txt to CMakeLists.txt
       `mv lib/Backends/MetaWareNN/CMakeLists_shared_lib.txt lib/Backends/MetaWareNN/CMakeLists.txt`
+   3. Download the metawarenn shared library from egnyte link https://multicorewareinc.egnyte.com/dl/n31afFTwP9 and place it in `glow/lib/Backends/MetaWareNN/metawarenn_lib/lib`
+   4. Also download the dependent protobuf library from egnyte link https://multicorewareinc.egnyte.com/dl/kpRzPTSFdx and place it in `glow/lib/Backends/MetaWareNN/metawarenn_lib/lib`
+  ```
 
 ### Configure and Build Glow
 * #### For Release Build
