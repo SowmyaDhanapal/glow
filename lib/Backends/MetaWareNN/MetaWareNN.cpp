@@ -47,7 +47,7 @@ bool MetaWareNNBackend::isOpSupported(const NodeInfo &NI) const
     }
 }
 
-bool MetaWareNNBackend::shouldLower(const Node *N) const
+bool MetaWareNNBackend::shouldLower(const ::glow::Node *N) const
 {
     return false;
 }

@@ -10,11 +10,11 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
     std::string subgraph_name = "MetaWareNN_" + std::to_string(graph_count);
 
     /*Create MetaWareNN High Level Graph Representation from Glow SubGraph Function*/
-    mwnn_graph_ = std::make_shared<MWNNGraph>();
-    mwnn_graph_->set_name(subgraph_name);
+    graph_ = std::make_shared<Graph>();
+    graph_->set_name(subgraph_name);
 
     std::cout << "\n----------------------------------------------------------------------------------------------------------------\n";
-    std::cout << "\n MWNN Graph Name : " << mwnn_graph_->get_name();
+    std::cout << "\n MWNN Graph Name : " << graph_->get_name();
 
     GraphPostOrderVisitor visitor(*F);
     auto node_list = visitor.getPostOrder();
@@ -26,7 +26,7 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
         std::string node_op_type;
         std::vector<std::string> node_inputs;
         std::vector<std::string> node_outputs;
-        std::vector<::metawarenn::MWNNAttribute> node_attributes;
+        std::vector<::metawarenn::Attribute> node_attributes;
         node_name = std::string(node->getName());
         auto kind = node->getKindName();
         LOG(INFO) << "Node Name: " << node_name << "\tOp type: " << node->getKindName();
@@ -48,7 +48,7 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
             auto filter_name = filter_node_value.generateNodeOutputName(true);
             LOG(INFO) << "filter_name: " << filter_name;
             node_inputs.emplace_back(filter_name);
-            mwnn_graph_->mwnn_initializer_names.insert(filter_name);
+            graph_->initializer_names.insert(filter_name);
             auto *filter_constant = llvm::dyn_cast<glow::Constant>(filter_node_value.getNode());
             glow::Tensor filter_tensor = filter_constant->getPayload().clone();
             auto type = filter_tensor.getType();
@@ -66,12 +66,12 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
             for (auto elem : handle) {
               weights[i++] = elem;
             }
-            metawarenn::MWNNTensor mwnn_weight_tensor(filter_name, weight_dims, get_mwnn_type_glow(data_type), weights);
-            mwnn_graph_->set_graph_initializers(mwnn_weight_tensor);
+            metawarenn::Tensor weight_tensor(filter_name, weight_dims, get_mwnn_type_glow(data_type), weights);
+            graph_->set_graph_initializers(weight_tensor);
             auto bias_node_value = conv_node->getBias();
             auto bias_name = bias_node_value.generateNodeOutputName(true);
-            // Check to avoid redundant constants in mwnn initializers
-            if(!mwnn_graph_->mwnn_initializer_names.count(bias_name))
+            // Check to avoid redundant constants in initializers
+            if(!graph_->initializer_names.count(bias_name))
             {
               LOG(INFO) << "bias_name: " << bias_name;
               auto *bias_constant = llvm::dyn_cast<glow::Constant>(bias_node_value.getNode());
@@ -86,28 +86,28 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
                 bias[i++] = elem;
               }
               node_inputs.emplace_back(bias_name);
-              mwnn_graph_->mwnn_initializer_names.insert(bias_name);
+              graph_->initializer_names.insert(bias_name);
               type = bias_tensor.getType();
               data_type = type.getElementType();
-              metawarenn::MWNNTensor mwnn_bias_tensor(bias_name, bias_dims, get_mwnn_type_glow(data_type), bias);
-              mwnn_graph_->set_graph_initializers(mwnn_bias_tensor);
+              metawarenn::Tensor m_bias_tensor(bias_name, bias_dims, get_mwnn_type_glow(data_type), bias);
+              graph_->set_graph_initializers(m_bias_tensor);
             }
             auto dilations = conv_node->getDilation();
             auto strides = conv_node->getStrides();
             auto pads = conv_node->getPads();
             auto group = conv_node->getGroup();
-            metawarenn::MWNNAttribute mwnn_attr_dilate("dilations", std::vector<int>{int(dilations[0]), int(dilations[1])});
-            node_attributes.emplace_back(mwnn_attr_dilate);
-            metawarenn::MWNNAttribute mwnn_attr_stride("strides", std::vector<int>{int(strides[0]), int(strides[1])});
-            node_attributes.emplace_back(mwnn_attr_stride);
-            metawarenn::MWNNAttribute mwnn_attr_pad("pads", std::vector<int>{int(pads[0]), int(pads[1]), int(pads[2]), int(pads[3])});
-            node_attributes.emplace_back(mwnn_attr_pad);
-            metawarenn::MWNNAttribute mwnn_attr_group("group", std::vector<int>{int(group)});
-            node_attributes.emplace_back(mwnn_attr_group);
-            metawarenn::MWNNAttribute mwnn_attribute("activation", std::vector<int>{0});
-            node_attributes.emplace_back(mwnn_attribute);
-            metawarenn::MWNNAttribute mwnn_attr_kernel_shape("kernel_shape", std::vector<int>{(int)filterDims.h, (int)filterDims.w});
-            node_attributes.emplace_back(mwnn_attr_kernel_shape);
+            metawarenn::Attribute attr_dilate("dilations", std::vector<int>{int(dilations[0]), int(dilations[1])});
+            node_attributes.emplace_back(attr_dilate);
+            metawarenn::Attribute attr_stride("strides", std::vector<int>{int(strides[0]), int(strides[1])});
+            node_attributes.emplace_back(attr_stride);
+            metawarenn::Attribute attr_pad("pads", std::vector<int>{int(pads[0]), int(pads[1]), int(pads[2]), int(pads[3])});
+            node_attributes.emplace_back(attr_pad);
+            metawarenn::Attribute attr_group("group", std::vector<int>{int(group)});
+            node_attributes.emplace_back(attr_group);
+            metawarenn::Attribute attr_act("activation", std::vector<int>{0});
+            node_attributes.emplace_back(attr_act);
+            metawarenn::Attribute attr_kernel_shape("kernel_shape", std::vector<int>{(int)filterDims.h, (int)filterDims.w});
+            node_attributes.emplace_back(attr_kernel_shape);
             auto output_name = conv_node->getResult().generateNodeOutputName(true);
             node_outputs.emplace_back(output_name);
             LOG(INFO) << "output_name: " << output_name;
@@ -132,12 +132,12 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
           auto kernels = avgpool_node->getKernels();
           auto strides = avgpool_node->getStrides();
           auto pads = avgpool_node->getPads();
-          metawarenn::MWNNAttribute mwnn_attr_kernel_shape("kernel_shape", std::vector<int>{int(kernels[0]), int(kernels[1])});
-          node_attributes.emplace_back(mwnn_attr_kernel_shape);
-          metawarenn::MWNNAttribute mwnn_attr_stride("strides", std::vector<int>{int(strides[0]), int(strides[1])});
-          node_attributes.emplace_back(mwnn_attr_stride);
-          metawarenn::MWNNAttribute mwnn_attr_pads("pads", std::vector<int>{int(pads[0]), int(pads[1]), int(pads[2]), int(pads[3])});
-          node_attributes.emplace_back(mwnn_attr_pads);
+          metawarenn::Attribute attr_kernel_shape("kernel_shape", std::vector<int>{int(kernels[0]), int(kernels[1])});
+          node_attributes.emplace_back(attr_kernel_shape);
+          metawarenn::Attribute attr_stride("strides", std::vector<int>{int(strides[0]), int(strides[1])});
+          node_attributes.emplace_back(attr_stride);
+          metawarenn::Attribute attr_pads("pads", std::vector<int>{int(pads[0]), int(pads[1]), int(pads[2]), int(pads[3])});
+          node_attributes.emplace_back(attr_pads);
           auto input_name = avgpool_node->getInput().generateNodeOutputName(true);
           node_inputs.emplace_back(input_name);
           LOG(INFO) << "input_name: " << input_name;
@@ -187,11 +187,11 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
           for(auto dim: dims){
             dims_vec[i++] = dim;
           }
-          metawarenn::MWNNTensor mwnn_reshape_tensor(initializer_name, dims_, get_mwnn_type_glow(ElemKind::Int64ITy), dims_vec);
-          mwnn_graph_->set_graph_initializers(mwnn_reshape_tensor);
+          metawarenn::Tensor reshape_tensor(initializer_name, dims_, get_mwnn_type_glow(ElemKind::Int64ITy), dims_vec);
+          graph_->set_graph_initializers(reshape_tensor);
           node_inputs.emplace_back(input_name);
           node_inputs.emplace_back(initializer_name);
-          mwnn_graph_->mwnn_initializer_names.insert(initializer_name);
+          graph_->initializer_names.insert(initializer_name);
           LOG(INFO) << "input_name: " << input_name;
           auto output_name = reshape_node->getResult().generateNodeOutputName(true);
           node_outputs.emplace_back(output_name);
@@ -202,12 +202,12 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
         {
           node_op_type = "LRN";
           auto *lrn_node = llvm::cast<LocalResponseNormalizationNode>(node);
-          metawarenn::MWNNAttribute mwnn_attr_alpha("alpha", std::vector<int>{int(lrn_node->getAlpha())});
-          node_attributes.emplace_back(mwnn_attr_alpha);
-          metawarenn::MWNNAttribute mwnn_attr_beta("beta", std::vector<int>{int(lrn_node->getBeta())});
-          node_attributes.emplace_back(mwnn_attr_beta);
-          metawarenn::MWNNAttribute mwnn_attr_half_window_size("half_window_size", std::vector<int>{int(lrn_node->getHalfWindowSize())});
-          node_attributes.emplace_back(mwnn_attr_half_window_size);
+          metawarenn::Attribute attr_alpha("alpha", std::vector<int>{int(lrn_node->getAlpha())});
+          node_attributes.emplace_back(attr_alpha);
+          metawarenn::Attribute attr_beta("beta", std::vector<int>{int(lrn_node->getBeta())});
+          node_attributes.emplace_back(attr_beta);
+          metawarenn::Attribute attr_half_window_size("half_window_size", std::vector<int>{int(lrn_node->getHalfWindowSize())});
+          node_attributes.emplace_back(attr_half_window_size);
           auto input_name = lrn_node->getInput().generateNodeOutputName(true);
           node_inputs.emplace_back(input_name);
           LOG(INFO) << "input_name: " << input_name;
@@ -223,12 +223,12 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
           auto kernels = maxpool_node->getKernels();
           auto strides = maxpool_node->getStrides();
           auto pads = maxpool_node->getPads();
-          metawarenn::MWNNAttribute mwnn_attr_kernel_shape("kernel_shape", std::vector<int>{int(kernels[0]), int(kernels[1])});
-          node_attributes.emplace_back(mwnn_attr_kernel_shape);
-          metawarenn::MWNNAttribute mwnn_attr_stride("strides", std::vector<int>{int(strides[0]), int(strides[1])});
-          node_attributes.emplace_back(mwnn_attr_stride);
-          metawarenn::MWNNAttribute mwnn_attr_pad("pads", std::vector<int>{int(pads[0]), int(pads[1]), int(pads[2]), int(pads[3])});
-          node_attributes.emplace_back(mwnn_attr_pad);
+          metawarenn::Attribute attr_kernel_shape("kernel_shape", std::vector<int>{int(kernels[0]), int(kernels[1])});
+          node_attributes.emplace_back(attr_kernel_shape);
+          metawarenn::Attribute attr_stride("strides", std::vector<int>{int(strides[0]), int(strides[1])});
+          node_attributes.emplace_back(attr_stride);
+          metawarenn::Attribute attr_pad("pads", std::vector<int>{int(pads[0]), int(pads[1]), int(pads[2]), int(pads[3])});
+          node_attributes.emplace_back(attr_pad);
           auto input_name = maxpool_node->getInput().generateNodeOutputName(true);
           node_inputs.emplace_back(input_name);
           LOG(INFO) << "input_name: " << input_name;
@@ -244,7 +244,7 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
           std::cout << "\n gemm inputs: " << gemm_node->getNumInputs();
           auto filter_node_value = gemm_node->getNthInput(1);
           auto filter_name = filter_node_value.generateNodeOutputName(true);
-          mwnn_graph_->mwnn_initializer_names.insert(filter_name);
+          graph_->initializer_names.insert(filter_name);
           node_inputs.emplace_back(filter_name);
           auto *filter_constant = llvm::dyn_cast<glow::Constant>(filter_node_value.getNode());
           glow::Tensor filter_tensor = filter_constant->getPayload().clone();
@@ -262,13 +262,13 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
           {
               weights[i++] = elem;
           }
-          metawarenn::MWNNTensor mwnn_weight_tensor(filter_name, weight_dims, get_mwnn_type_glow(data_type), weights);
-          mwnn_graph_->set_graph_initializers(mwnn_weight_tensor);
+          metawarenn::Tensor weight_tensor(filter_name, weight_dims, get_mwnn_type_glow(data_type), weights);
+          graph_->set_graph_initializers(weight_tensor);
           auto bias_node_value = gemm_node->getNthInput(2);
           auto bias_name = bias_node_value.generateNodeOutputName(true);
           LOG(INFO) << "bias_name: " << bias_name;
           node_inputs.emplace_back(bias_name);
-          mwnn_graph_->mwnn_initializer_names.insert(bias_name);
+          graph_->initializer_names.insert(bias_name);
           auto *bias_constant = llvm::dyn_cast<glow::Constant>(bias_node_value.getNode());
           glow::Tensor bias_tensor = bias_constant->getPayload().clone();
           auto handle1 = bias_tensor.getHandle<float>();
@@ -283,12 +283,12 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
           }
           type = bias_tensor.getType();
           data_type = type.getElementType();
-          metawarenn::MWNNTensor mwnn_bias_tensor(bias_name, bias_dims, get_mwnn_type_glow(data_type), bias);
-          mwnn_graph_->set_graph_initializers(mwnn_bias_tensor);
-          metawarenn::MWNNAttribute mwnn_attr_alpha("alpha", std::vector<int>{int(gemm_node->getAlpha())});
-          node_attributes.emplace_back(mwnn_attr_alpha);
-          metawarenn::MWNNAttribute mwnn_attr_beta("beta", std::vector<int>{int(gemm_node->getBeta())});
-          node_attributes.emplace_back(mwnn_attr_beta);
+          metawarenn::Tensor m_bias_tensor(bias_name, bias_dims, get_mwnn_type_glow(data_type), bias);
+          graph_->set_graph_initializers(m_bias_tensor);
+          metawarenn::Attribute attr_alpha("alpha", std::vector<int>{int(gemm_node->getAlpha())});
+          node_attributes.emplace_back(attr_alpha);
+          metawarenn::Attribute attr_beta("beta", std::vector<int>{int(gemm_node->getBeta())});
+          node_attributes.emplace_back(attr_beta);
           auto input_name = gemm_node->getInputName(0);
           node_inputs.emplace_back(input_name);
           LOG(INFO) << "input_name: " << input_name;
@@ -322,7 +322,7 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
           auto bias_name = bias_node_value.generateNodeOutputName(true);
           LOG(INFO) << "bias_name: " << bias_name;
           node_inputs.emplace_back(bias_name);
-          mwnn_graph_->mwnn_initializer_names.insert(bias_name);
+          graph_->initializer_names.insert(bias_name);
           auto *bias_constant = llvm::dyn_cast<glow::Constant>(bias_node_value.getNode());
           glow::Tensor bias_tensor = bias_constant->getPayload().clone();
           auto handle1 = bias_tensor.getHandle<float>();
@@ -337,12 +337,12 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
           }
           auto type = bias_tensor.getType();
           auto data_type = type.getElementType();
-          metawarenn::MWNNTensor mwnn_bias_tensor(bias_name, bias_dims, get_mwnn_type_glow(data_type), bias);
-          mwnn_graph_->set_graph_initializers(mwnn_bias_tensor);
-          metawarenn::MWNNAttribute mwnn_attr_momentum("momentum", std::vector<float>{batchnorm_node->getMomentum()});
-          node_attributes.emplace_back(mwnn_attr_momentum);
-          metawarenn::MWNNAttribute mwnn_attr_epsilon("epsilon", std::vector<float>{batchnorm_node->getEpsilon()});
-          node_attributes.emplace_back(mwnn_attr_epsilon);
+          metawarenn::Tensor m_bias_tensor(bias_name, bias_dims, get_mwnn_type_glow(data_type), bias);
+          graph_->set_graph_initializers(m_bias_tensor);
+          metawarenn::Attribute attr_momentum("momentum", std::vector<float>{batchnorm_node->getMomentum()});
+          node_attributes.emplace_back(attr_momentum);
+          metawarenn::Attribute attr_epsilon("epsilon", std::vector<float>{batchnorm_node->getEpsilon()});
+          node_attributes.emplace_back(attr_epsilon);
           auto input_name = batchnorm_node->getInputName(0);
           node_inputs.emplace_back(input_name);
           auto output_name = batchnorm_node->getResult().generateNodeOutputName(true);
@@ -354,10 +354,10 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
         {
           node_op_type = "ChannelShuffle";
           auto *channel_shuffle_node = llvm::cast<ChannelShuffleNode>(node);
-          metawarenn::MWNNAttribute mwnn_attr_group("group", std::vector<int>{int(channel_shuffle_node->getGroup())});
-          node_attributes.emplace_back(mwnn_attr_group);
-          metawarenn::MWNNAttribute mwnn_attr_kernel("kernel", std::vector<int>{int(channel_shuffle_node->getKernel())});
-          node_attributes.emplace_back(mwnn_attr_kernel);
+          metawarenn::Attribute attr_group("group", std::vector<int>{int(channel_shuffle_node->getGroup())});
+          node_attributes.emplace_back(attr_group);
+          metawarenn::Attribute attr_kernel("kernel", std::vector<int>{int(channel_shuffle_node->getKernel())});
+          node_attributes.emplace_back(attr_kernel);
           auto input_name = channel_shuffle_node->getInputName(0);
           node_inputs.emplace_back(input_name);
           auto output_name = channel_shuffle_node->getResult().generateNodeOutputName(true);
@@ -371,10 +371,10 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
           auto *clip_node = llvm::cast<ClipNode>(node);
           clip_node->getMax();
           clip_node->getMin();
-          metawarenn::MWNNAttribute mwnn_attr_max("max", std::vector<float>{(clip_node->getMax())});
-          node_attributes.emplace_back(mwnn_attr_max);
-          metawarenn::MWNNAttribute mwnn_attr_min("min", std::vector<float>{(clip_node->getMax())});
-          node_attributes.emplace_back(mwnn_attr_min);
+          metawarenn::Attribute attr_max("max", std::vector<float>{(clip_node->getMax())});
+          node_attributes.emplace_back(attr_max);
+          metawarenn::Attribute attr_min("min", std::vector<float>{(clip_node->getMax())});
+          node_attributes.emplace_back(attr_min);
           auto input_name = clip_node->getInputName(0);
           node_inputs.emplace_back(input_name);
           auto output_name = clip_node->getResult().generateNodeOutputName(true);
@@ -404,15 +404,15 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
           {
               weights[i++] = elem;
           }
-          mwnn_graph_->mwnn_initializer_names.insert(filter_name);
+          graph_->initializer_names.insert(filter_name);
           node_inputs.emplace_back(filter_name);
-          metawarenn::MWNNTensor mwnn_weight_tensor(filter_name, weight_dims, get_mwnn_type_glow(data_type), weights);
-          mwnn_graph_->set_graph_initializers(mwnn_weight_tensor);
+          metawarenn::Tensor weight_tensor(filter_name, weight_dims, get_mwnn_type_glow(data_type), weights);
+          graph_->set_graph_initializers(weight_tensor);
           auto bias_node_value = fc_node->getBias();;
           auto bias_name = bias_node_value.generateNodeOutputName(true);
           LOG(INFO) << "bias_name: " << bias_name;
           node_inputs.emplace_back(bias_name);
-          mwnn_graph_->mwnn_initializer_names.insert(bias_name);
+          graph_->initializer_names.insert(bias_name);
           auto *bias_constant = llvm::dyn_cast<glow::Constant>(bias_node_value.getNode());
           glow::Tensor bias_tensor = bias_constant->getPayload().clone();
           auto handle1 = bias_tensor.getHandle<float>();
@@ -427,8 +427,8 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
           }
           type = bias_tensor.getType();
           data_type = type.getElementType();
-          metawarenn::MWNNTensor mwnn_bias_tensor(bias_name, bias_dims, get_mwnn_type_glow(data_type), bias);
-          mwnn_graph_->set_graph_initializers(mwnn_bias_tensor);
+          metawarenn::Tensor m_bias_tensor(bias_name, bias_dims, get_mwnn_type_glow(data_type), bias);
+          graph_->set_graph_initializers(m_bias_tensor);
           auto input_name = fc_node->getInputName(0);
           node_inputs.emplace_back(input_name);
           LOG(INFO) << "input_name: " << input_name;
@@ -452,10 +452,10 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
         default:
           break;
         }
-        metawarenn::MWNNNode mwnn_node(node_name, node_op_type, node_attributes, node_inputs, node_outputs);
-        mwnn_graph_->set_graph_nodes(mwnn_node);
-        auto op_node = mwnn_node.get_node();
-        mwnn_graph_->mwnn_graph_nodes[mwnn_node.get_name()] = std::move(op_node);
+        metawarenn::Node m_node(node_name, node_op_type, node_attributes, node_inputs, node_outputs);
+        graph_->set_graph_nodes(m_node);
+        auto op_node = m_node.get_node();
+        graph_->graph_nodes[m_node.get_name()] = std::move(op_node);
         global_output_name = node_outputs[0].c_str();
       }
     }
@@ -479,93 +479,93 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
       dims[2] = int(glow_dims[2]);
       dims[0] = int(glow_dims[0]);
       if (getOutputSave(F, V)) {
-        mwnn_graph_->set_graph_op_names(global_output_name);
+        graph_->set_graph_op_names(global_output_name);
         //Fills Graph Output Tensor Details - Name, Dims
-        MWNNTensor mwnn_op_tensor(global_output_name, get_mwnn_type_glow(data_type), dims);
-        mwnn_graph_->set_graph_op_tensor(mwnn_op_tensor);
+        Tensor op_tensor(global_output_name, get_mwnn_type_glow(data_type), dims);
+        graph_->set_graph_op_tensor(op_tensor);
       }
       else if(V->getName().equals(input_name)) {
-        mwnn_graph_->set_graph_ip_names(V->getName());
+        graph_->set_graph_ip_names(V->getName());
         //Fills Graph Input Tensor Details - Name, Dims
-        MWNNTensor mwnn_ip_tensor(V->getName(), get_mwnn_type_glow(data_type), dims);
-        mwnn_graph_->set_graph_ip_tensor(mwnn_ip_tensor);
+        Tensor ip_tensor(V->getName(), get_mwnn_type_glow(data_type), dims);
+        graph_->set_graph_ip_tensor(ip_tensor);
       }
     }
     optimizer::PassManager manager;
     if(CHW_TO_HWC)
     {
-      for (auto g_t : mwnn_graph_->get_graph_ip_tensor()) {
+      for (auto g_t : graph_->get_graph_ip_tensor()) {
         if(g_t.get_dims().size() == 4) {
           /*std::cout << "\n Name : " << g_t.get_name();
           std::cout << "\t Dims : ";
           for (auto dim : g_t.get_dims())
             std::cout << dim << ",";*/
-          optimizer::ConvertLayout cl(mwnn_graph_, g_t, CHW_TO_HWC, 0, false);
+          optimizer::ConvertLayout cl(graph_, g_t, CHW_TO_HWC, 0, false);
           manager.register_pass(cl);
         }
       }
     }
     if(HWC_TO_CHW)
     {
-      for (auto g_t : mwnn_graph_->get_graph_initializers()) {
+      for (auto g_t : graph_->get_graph_initializers()) {
         if(g_t.get_dims().size() == 4) {
           /*std::cout << "\n Name : " << g_t.get_name();
           std::cout << "\t Dims : ";
           for (auto dim : g_t.get_dims())
             std::cout << dim << ",";*/
-          ::metawarenn::optimizer::ConvertLayout cl(mwnn_graph_, g_t, 0, HWC_TO_CHW, true);
+          ::metawarenn::optimizer::ConvertLayout cl(graph_, g_t, 0, HWC_TO_CHW, true);
           manager.register_pass(cl);
         }
       }
       //Subgraph from other backends is already in CHW order
       if(graph_count == 1) {
-        for (auto g_t : mwnn_graph_->get_graph_ip_tensor()) {
+        for (auto g_t : graph_->get_graph_ip_tensor()) {
           if(g_t.get_dims().size() == 4) {
             /*std::cout << "\n Name : " << g_t.get_name();
             std::cout << "\t Dims : ";
             for (auto dim : g_t.get_dims())
               std::cout << dim << ",";*/
-            ::metawarenn::optimizer::ConvertLayout cl(mwnn_graph_, g_t, 0, HWC_TO_CHW, false);
+            ::metawarenn::optimizer::ConvertLayout cl(graph_, g_t, 0, HWC_TO_CHW, false);
             manager.register_pass(cl);
           }
         }
       }
     }
-    auto mwnn_nodes = mwnn_graph_->get_graph_nodes();
-    for (int node_idx = 0; node_idx < mwnn_graph_->get_graph_nodes().size(); node_idx++) {
-      auto g_n = mwnn_nodes[node_idx];
+    auto m_nodes = graph_->get_graph_nodes();
+    for (int node_idx = 0; node_idx < graph_->get_graph_nodes().size(); node_idx++) {
+      auto g_n = m_nodes[node_idx];
       if(g_n.get_op_type() == "Relu") {
-        optimizer::FuseRelu fr(mwnn_graph_, g_n);
+        optimizer::FuseRelu fr(graph_, g_n);
         //std::cout << "\n MetaWareNNCC : " << fr.get_name();
         manager.register_pass(fr);
       }
       else if(g_n.get_op_type() == "Transpose") {
-        optimizer::RemoveTranspose rt(mwnn_graph_, g_n);
+        optimizer::RemoveTranspose rt(graph_, g_n);
         //std::cout << "\n MetaWareNNCC : " << rt.get_name();
         manager.register_pass(rt);
       }
     }
-    optimizer::CalculateOffset co(mwnn_graph_);
+    optimizer::CalculateOffset co(graph_);
     manager.register_pass(co);
     manager.run_passes();
-    mwnn_exe_graph_ = std::make_shared<metawarenn::MWNNExecutableGraph>(*mwnn_graph_);
+    exe_graph_ = std::make_shared<metawarenn::ExecutableGraph>(*graph_);
 
     #if INVOKE_NNAC
       std::cout << "\n ---------------------------Graph----------------------------- \n";
-      std::cout << "\n Graph Name : " << mwnn_graph_->get_name();
-    ::MWNN::MWNNGraphProto mwnn_graph_proto;
-    mwnn_graph_proto.set_name(mwnn_graph_->get_name());
-    for (auto g_ip : mwnn_graph_->get_graph_ip_names())
-      mwnn_graph_proto.add_ip_name((g_ip));
-    for (auto g_op : mwnn_graph_->get_graph_op_names())
-      mwnn_graph_proto.add_op_name((g_op));
+      std::cout << "\n Graph Name : " << graph_->get_name();
+    ::MWNN::MWNNGraphProto graph_proto;
+    graph_proto.set_name(graph_->get_name());
+    for (auto g_ip : graph_->get_graph_ip_names())
+      graph_proto.add_ip_name((g_ip));
+    for (auto g_op : graph_->get_graph_op_names())
+      graph_proto.add_op_name((g_op));
 
     std::cout << "\n -----------------------Graph Inputs-------------------------- \n";
-    for (auto g_ip : mwnn_graph_->get_graph_ip_tensor()) {
+    for (auto g_ip : graph_->get_graph_ip_tensor()) {
       std::cout << "\n Input Name : " << g_ip.get_name();
       std::cout << "\n Data Type : " << g_ip.get_type();
       std::cout << "\n Input Dims : ";
-      auto input = mwnn_graph_proto.add_input();
+      auto input = graph_proto.add_input();
       input->set_name(g_ip.get_name());
       input->set_type(g_ip.get_type());
       for (auto dim : g_ip.get_dims()) {
@@ -574,11 +574,11 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
       }
     }
     std::cout << "\n -----------------------Graph Outputs-------------------------- \n";
-    for (auto g_op : mwnn_graph_->get_graph_op_tensor()) {
+    for (auto g_op : graph_->get_graph_op_tensor()) {
       std::cout << "\n Output Name : " << g_op.get_name();
       std::cout << "\n Data Type : " << g_op.get_type();
       std::cout << "\n Output Dims : ";
-      auto output = mwnn_graph_proto.add_output();
+      auto output = graph_proto.add_output();
       output->set_name(g_op.get_name());
       output->set_type(g_op.get_type());
       for (auto dim : g_op.get_dims()) {
@@ -587,11 +587,11 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
       }
     }
     std::cout << "\n -----------------------Graph Nodes-------------------------- \n";
-    for (auto g_n : mwnn_graph_->get_graph_nodes()) {
+    for (auto g_n : graph_->get_graph_nodes()) {
       std::cout << "\n ================================================================ \n";
       std::cout << "\n Node Name : " << g_n.get_name();
       std::cout << "\n Op Type : " << g_n.get_op_type();
-      auto node = mwnn_graph_proto.add_node();
+      auto node = graph_proto.add_node();
       node->set_name(g_n.get_name());
       auto op_type = g_n.get_op_type();
       node->set_op_type(op_type == "DepthwiseConv" ? "Conv" : op_type);
@@ -631,8 +631,8 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
       }
     }
     std::cout << "\n -----------------------Graph Tensors-------------------------- \n";
-    for (auto g_t : mwnn_graph_->get_graph_initializers()) {
-      auto initializer = mwnn_graph_proto.add_initializer();
+    for (auto g_t : graph_->get_graph_initializers()) {
+      auto initializer = graph_proto.add_initializer();
       initializer->set_name(g_t.get_name());
       initializer->set_type(g_t.get_type());
       std::cout << "\n Name : " << g_t.get_name();
@@ -649,29 +649,29 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
       }
     }
 
-    std::string g_name = mwnn_graph_->get_name();
-    char* mwnn_op_path = nullptr;
-    mwnn_op_path = getenv("NNAC_DUMPS_PATH");
-    if(!IsPathExist(std::string(mwnn_op_path))) {
-      int check = mkdir(mwnn_op_path, 0777);
+    std::string g_name = graph_->get_name();
+    char* op_path = nullptr;
+    op_path = getenv("NNAC_DUMPS_PATH");
+    if(!IsPathExist(std::string(op_path))) {
+      int check = mkdir(op_path, 0777);
       if(check != 0) {
         std::cout << "\nPlease check the directory path to store the serialized binary!!!!!";
         exit(1);
       }
     }
-    auto mwnn_proto_bin = std::string(mwnn_op_path) + std::string(g_name) + ".bin";
+    auto proto_bin = std::string(op_path) + std::string(g_name) + ".bin";
 
-    int fp = open(mwnn_proto_bin.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    int fp = open(proto_bin.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
     std::cout << fp;
-    std::cout << mwnn_graph_proto.SerializeToFileDescriptor(fp);
+    std::cout << graph_proto.SerializeToFileDescriptor(fp);
     close(fp);
 
-    char* mwnn_lib_path = nullptr;
-    mwnn_lib_path = getenv("METAWARENN_LIB_PATH");
-    if(!IsPathExist(std::string(mwnn_lib_path)))
+    char* lib_path = nullptr;
+    lib_path = getenv("METAWARENN_LIB_PATH");
+    if(!IsPathExist(std::string(lib_path)))
       std::cout << "\nPlease check the MetaWareNN Library path!!!";
     std::cout << "\n\n=================Initiating NNAC python script via shell script======================\n";
-    std::string cmd = "bash " + std::string(mwnn_lib_path) +"/mwnnconvert/mwnn_convert.sh " + mwnn_proto_bin + " " + mwnn_op_path + " " + g_name + " " + std::to_string(graph_count);
+    std::string cmd = "bash " + std::string(lib_path) +"/mwnnconvert/mwnn_convert.sh " + proto_bin + " " + op_path + " " + g_name + " " + std::to_string(graph_count);
     const char *command = cmd.c_str();
     system(command);
     #endif
@@ -704,24 +704,24 @@ Error MetaWareNNFunction::execute(ExecutionContext *context) {
   }
   for (const auto &ph : this->getOutputs()) {
     auto *tensor = bindings->get(ph);
-    graph_outputs[mwnn_graph_->get_graph_op_names()[0]] = (float*)tensor->getUnsafePtr();
+    graph_outputs[graph_->get_graph_op_names()[0]] = (float*)tensor->getUnsafePtr();
 
   }
 
   // **************************************** Calls to invoke the MetaWareNN Inference API ************************************
-  MWNNInferenceApi mwapi;
+  InferenceApi mwapi;
 
-  std::vector<std::string> ip_names = mwnn_graph_->get_graph_ip_names();
-  auto ip_shape = mwnn_graph_->get_graph_ip_tensor()[0].get_dims();
+  std::vector<std::string> ip_names = graph_->get_graph_ip_names();
+  auto ip_shape = graph_->get_graph_ip_tensor()[0].get_dims();
 
   mwapi.prepareInput(graph_inputs[ip_names[0]], ip_shape);
 
-  std::vector<std::string> op_names = mwnn_graph_->get_graph_op_names();
-  auto op_shape = mwnn_graph_->get_graph_op_tensor()[0].get_dims();
+  std::vector<std::string> op_names = graph_->get_graph_op_names();
+  auto op_shape = graph_->get_graph_op_tensor()[0].get_dims();
 
   mwapi.prepareOutput(op_shape);
 
-  mwapi.prepareGraph(mwnn_graph_->get_name());
+  mwapi.prepareGraph(graph_->get_name());
 
   mwapi.runGraph();
 
@@ -729,7 +729,7 @@ Error MetaWareNNFunction::execute(ExecutionContext *context) {
 
   // ******************************************* Call to invoke the local run function *****************************************
 
-  //convert_to_mwnn_format(*mwnn_graph_, graph_inputs, graph_outputs, CHW_TO_HWC);
+  //convert_to_mwnn_format(*graph_, graph_inputs, graph_outputs, CHW_TO_HWC);
   return Error::success();
 }
 } // namespace metawarenn

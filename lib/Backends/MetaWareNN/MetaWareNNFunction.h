@@ -68,8 +68,8 @@ private:
   /// List of model output placeholders.
   PlaceholderList outputs_;
 
-  std::shared_ptr<metawarenn::MWNNGraph> mwnn_graph_;
-  std::shared_ptr<metawarenn::MWNNExecutableGraph> mwnn_exe_graph_;
+  std::shared_ptr<metawarenn::Graph> graph_;
+  std::shared_ptr<metawarenn::ExecutableGraph> exe_graph_;
 };
 
 } // namespace metawarenn

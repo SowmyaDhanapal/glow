@@ -20,7 +20,7 @@ public:
   Expected<std::unique_ptr<CompiledFunction>>
   compile(Function *F, const BackendOptions &opts) const override;
   bool isOpSupported(const NodeInfo &NI) const override;
-  bool shouldLower(const Node *N) const override;
+  bool shouldLower(const ::glow::Node *N) const override;
 };
 
 } // namespace metawarenn
