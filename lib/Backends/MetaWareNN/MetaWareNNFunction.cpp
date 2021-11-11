@@ -98,16 +98,16 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
             auto group = conv_node->getGroup();
             metawarenn::Attribute attr_dilate("dilations", std::vector<int>{int(dilations[0]), int(dilations[1])});
             node_attributes.emplace_back(attr_dilate);
-            metawarenn::Attribute attr_stride("strides", std::vector<int>{int(strides[0]), int(strides[1])});
-            node_attributes.emplace_back(attr_stride);
-            metawarenn::Attribute attr_pad("pads", std::vector<int>{int(pads[0]), int(pads[1]), int(pads[2]), int(pads[3])});
-            node_attributes.emplace_back(attr_pad);
             metawarenn::Attribute attr_group("group", std::vector<int>{int(group)});
             node_attributes.emplace_back(attr_group);
-            metawarenn::Attribute attr_act("activation", std::vector<int>{0});
-            node_attributes.emplace_back(attr_act);
             metawarenn::Attribute attr_kernel_shape("kernel_shape", std::vector<int>{(int)filterDims.h, (int)filterDims.w});
             node_attributes.emplace_back(attr_kernel_shape);
+            metawarenn::Attribute attr_pad("pads", std::vector<int>{int(pads[0]), int(pads[1]), int(pads[2]), int(pads[3])});
+            node_attributes.emplace_back(attr_pad);
+            metawarenn::Attribute attr_stride("strides", std::vector<int>{int(strides[0]), int(strides[1])});
+            node_attributes.emplace_back(attr_stride);
+            metawarenn::Attribute attr_act("activation", std::vector<int>{0});
+            node_attributes.emplace_back(attr_act);
             auto output_name = conv_node->getResult().generateNodeOutputName(true);
             node_outputs.emplace_back(output_name);
             LOG(INFO) << "output_name: " << output_name;
@@ -127,11 +127,14 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
           }
         case Kinded::Kind::AvgPoolNodeKind:
         {
-          node_op_type = "GlobalAveragePool";
+          node_op_type = "AveragePool";
           auto *avgpool_node = llvm::cast<AvgPoolNode>(node);
           auto kernels = avgpool_node->getKernels();
           auto strides = avgpool_node->getStrides();
           auto pads = avgpool_node->getPads();
+          auto count_include_pad = avgpool_node->getCountIncludePads();
+          metawarenn::Attribute attr_count_include_pad("count_include_pad", std::vector<int>{count_include_pad});
+          node_attributes.emplace_back(attr_count_include_pad);
           metawarenn::Attribute attr_kernel_shape("kernel_shape", std::vector<int>{int(kernels[0]), int(kernels[1])});
           node_attributes.emplace_back(attr_kernel_shape);
           metawarenn::Attribute attr_stride("strides", std::vector<int>{int(strides[0]), int(strides[1])});
@@ -165,6 +168,9 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
         {
           node_op_type = "Transpose";
           auto *transpose_node = llvm::cast<TransposeNode>(node);
+          auto perm = transpose_node->getShuffle();
+          metawarenn::Attribute attr_pads("perm", std::vector<int>{int(perm[0]), int(perm[1]), int(perm[2]), int(perm[3])});
+          node_attributes.emplace_back(attr_pads);
           auto input_name = transpose_node->getInput().generateNodeOutputName(true);
           node_inputs.emplace_back(input_name);
           LOG(INFO) << "input_name: " << input_name;
@@ -206,8 +212,10 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
           node_attributes.emplace_back(attr_alpha);
           metawarenn::Attribute attr_beta("beta", std::vector<int>{int(lrn_node->getBeta())});
           node_attributes.emplace_back(attr_beta);
-          metawarenn::Attribute attr_half_window_size("half_window_size", std::vector<int>{int(lrn_node->getHalfWindowSize())});
-          node_attributes.emplace_back(attr_half_window_size);
+          metawarenn::Attribute attr_size("size", std::vector<int>{int(lrn_node->getHalfWindowSize())});
+          node_attributes.emplace_back(attr_size);
+          metawarenn::Attribute attr_size("bias", std::vector<int>{int(lrn_node->getK())});
+          node_attributes.emplace_back(attr_size);
           auto input_name = lrn_node->getInput().generateNodeOutputName(true);
           node_inputs.emplace_back(input_name);
           LOG(INFO) << "input_name: " << input_name;
@@ -223,12 +231,14 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
           auto kernels = maxpool_node->getKernels();
           auto strides = maxpool_node->getStrides();
           auto pads = maxpool_node->getPads();
+          metawarenn::Attribute attr_dilations("dilations", std::vector<int>{1,1});
+          node_attributes.emplace_back(attr_dilations);
           metawarenn::Attribute attr_kernel_shape("kernel_shape", std::vector<int>{int(kernels[0]), int(kernels[1])});
           node_attributes.emplace_back(attr_kernel_shape);
-          metawarenn::Attribute attr_stride("strides", std::vector<int>{int(strides[0]), int(strides[1])});
-          node_attributes.emplace_back(attr_stride);
           metawarenn::Attribute attr_pad("pads", std::vector<int>{int(pads[0]), int(pads[1]), int(pads[2]), int(pads[3])});
           node_attributes.emplace_back(attr_pad);
+          metawarenn::Attribute attr_stride("strides", std::vector<int>{int(strides[0]), int(strides[1])});
+          node_attributes.emplace_back(attr_stride);
           auto input_name = maxpool_node->getInput().generateNodeOutputName(true);
           node_inputs.emplace_back(input_name);
           LOG(INFO) << "input_name: " << input_name;
@@ -289,6 +299,10 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
           node_attributes.emplace_back(attr_alpha);
           metawarenn::Attribute attr_beta("beta", std::vector<int>{int(gemm_node->getBeta())});
           node_attributes.emplace_back(attr_beta);
+          metawarenn::Attribute attr_alpha("transA", std::vector<int>{int(gemm_node->getTransposeA())});
+          node_attributes.emplace_back(attr_alpha);
+          metawarenn::Attribute attr_beta("transB", std::vector<int>{int(gemm_node->getBeta())});
+          node_attributes.emplace_back(attr_beta);
           auto input_name = gemm_node->getInputName(0);
           node_inputs.emplace_back(input_name);
           LOG(INFO) << "input_name: " << input_name;
@@ -301,6 +315,8 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
         {
           node_op_type = "Concat";
           auto *concat_node = llvm::cast<ConcatNode>(node);
+          metawarenn::Attribute attr_axis("axis", std::vector<int>{int(concat_node->getDim())});
+          node_attributes.emplace_back(attr_axis);
           for(int i = 0; i < concat_node->getInputs().size(); i++)
           {
             auto input_name = concat_node->getInputName(i);
@@ -339,10 +355,10 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
           auto data_type = type.getElementType();
           metawarenn::Tensor m_bias_tensor(bias_name, bias_dims, get_mwnn_type_glow(data_type), bias);
           graph_->set_graph_initializers(m_bias_tensor);
-          metawarenn::Attribute attr_momentum("momentum", std::vector<float>{batchnorm_node->getMomentum()});
-          node_attributes.emplace_back(attr_momentum);
           metawarenn::Attribute attr_epsilon("epsilon", std::vector<float>{batchnorm_node->getEpsilon()});
           node_attributes.emplace_back(attr_epsilon);
+          metawarenn::Attribute attr_momentum("momentum", std::vector<float>{batchnorm_node->getMomentum()});
+          node_attributes.emplace_back(attr_momentum);
           auto input_name = batchnorm_node->getInputName(0);
           node_inputs.emplace_back(input_name);
           auto output_name = batchnorm_node->getResult().generateNodeOutputName(true);
@@ -350,7 +366,7 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
           LOG(INFO) << "output_name: " << output_name;
           break;
         }
-        case Kinded::Kind::ChannelShuffleNodeKind:
+        case Kinded::Kind::ChannelShuffleNodeKind: //Check for onnx conversion
         {
           node_op_type = "ChannelShuffle";
           auto *channel_shuffle_node = llvm::cast<ChannelShuffleNode>(node);
@@ -369,12 +385,10 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
         {
           node_op_type = "Clip";
           auto *clip_node = llvm::cast<ClipNode>(node);
-          clip_node->getMax();
-          clip_node->getMin();
-          metawarenn::Attribute attr_max("max", std::vector<float>{(clip_node->getMax())});
-          node_attributes.emplace_back(attr_max);
           metawarenn::Attribute attr_min("min", std::vector<float>{(clip_node->getMax())});
           node_attributes.emplace_back(attr_min);
+          metawarenn::Attribute attr_max("max", std::vector<float>{(clip_node->getMax())});
+          node_attributes.emplace_back(attr_max);
           auto input_name = clip_node->getInputName(0);
           node_inputs.emplace_back(input_name);
           auto output_name = clip_node->getResult().generateNodeOutputName(true);
@@ -384,7 +398,7 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
         }
         case Kinded::Kind::FullyConnectedNodeKind:
         {
-          node_op_type = "FullyConnected";
+          node_op_type = "Gemm";
           auto *fc_node = llvm::cast<FullyConnectedNode>(node);
           auto filter_node_value = fc_node->getWeights();
           auto filter_name = filter_node_value.generateNodeOutputName(true);

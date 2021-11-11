@@ -49,6 +49,53 @@ add_library(MetaWareNN
             metawarenn_lib/op/sum.cc
             metawarenn_lib/op/channel_shuffle.cc
             metawarenn_lib/op/fully_connected.cc
+            metawarenn_lib/op/min.cc
+            metawarenn_lib/op/cast.cc
+            metawarenn_lib/op/sub.cc
+            metawarenn_lib/op/prelu.cc
+            metawarenn_lib/op/div.cc
+            metawarenn_lib/op/conv_transpose.cc
+            metawarenn_lib/op/matmul.cc
+            metawarenn_lib/op/upsample.cc
+            metawarenn_lib/op/instance_normalization.cc
+            metawarenn_lib/op/sigmoid.cc
+            metawarenn_lib/op/leaky_relu.cc
+            metawarenn_lib/op/slice.cc
+            metawarenn_lib/op/tanh.cc
+            metawarenn_lib/op/pow.cc
+            metawarenn_lib/op/sqrt.cc
+            metawarenn_lib/op/einsum.cc
+            metawarenn_lib/op/elu.cc
+            metawarenn_lib/op/where.cc
+            metawarenn_lib/op/abs.cc
+            metawarenn_lib/op/expand.cc
+            metawarenn_lib/op/scatter_nd.cc
+            metawarenn_lib/op/log.cc
+            metawarenn_lib/op/softplus.cc
+            metawarenn_lib/op/hard_swish.cc
+            metawarenn_lib/op/space_to_depth.cc
+            metawarenn_lib/op/argmax.cc
+            metawarenn_lib/op/reduce_mean.cc
+            metawarenn_lib/op/identity.cc
+            metawarenn_lib/op/reduce_sum.cc
+            metawarenn_lib/op/resize.cc
+            metawarenn_lib/op/reducel2.cc
+            metawarenn_lib/op/non_max_suppression.cc
+            metawarenn_lib/op/reduce_min.cc
+            metawarenn_lib/op/topk.cc
+            metawarenn_lib/op/less.cc
+            metawarenn_lib/op/tile.cc
+            metawarenn_lib/op/constant_of_shape.cc
+            metawarenn_lib/op/ceil.cc
+            metawarenn_lib/op/round.cc
+            metawarenn_lib/op/scatter.cc
+            metawarenn_lib/op/roi_align.cc
+            metawarenn_lib/op/equal.cc
+            metawarenn_lib/op/non_zero.cc
+            metawarenn_lib/op/not.cc
+            metawarenn_lib/op/and.cc
+            metawarenn_lib/op/floor.cc
+            metawarenn_lib/op/greater.cc
             metawarenn_lib/optimizer/metawarenn_optimizer.cc
             metawarenn_lib/optimizer/remove_reshape.cc
             metawarenn_lib/optimizer/fuse_relu.cc
@@ -58,6 +105,7 @@ add_library(MetaWareNN
             metawarenn_lib/optimizer/calculate_offset.cc
             metawarenn_lib/optimizer/fuse_batchnorm.cc
             metawarenn_lib/mwnnconvert/mwnn_protobuf/cpp_wrapper/MWNN.pb.cc
+            metawarenn_lib/mwnnconvert/onnx_protobuf/onnx-ml.pb.cc
             metawarenn_lib/mwnn_inference_api/mwnn_inference_api.cc
             metawarenn_lib/mwnn_inference_api/mwnn_inference_shm.cc
             metawarenn_lib/executable_network/metawarenn_executable_graph.cc
