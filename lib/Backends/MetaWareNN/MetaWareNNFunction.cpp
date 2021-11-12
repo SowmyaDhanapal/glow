@@ -463,6 +463,163 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
           LOG(INFO) << "output_name: " << output_name;
           break;
         }
+        case Kinded::Kind::SliceNodeKind:
+        {
+          node_op_type = "Slice";
+          auto *slice_node = llvm::cast<SliceNode>(node);
+          auto starts = slice_node->getStart();
+          auto outs = slice_node->getResult().dims();
+          auto size = starts.size();
+          std::vector<float> starts_vec(size);
+          std::vector<float> ends_vec(size);
+          std::vector<float> axes_vec(size);
+          std::vector<float> steps_vec(size);
+
+          for (unsigned b = 0, e = size; b < e; ++b) {
+            starts_vec[b] = (float)starts[b];
+            starts_vec[b] = (float)outs[b] + starts[b];
+            axes_vec[b] = (float)b; //  If axes are omitted, they are set to [0, ..., ndim-1]
+            steps_vec[b] = (float)0;
+          }
+          metawarenn::Tensor tensor_starts(node_name + "_starts", std::vector<int>{int(size)}, ElementType::element_type::float_, starts_vec);
+          graph_->set_graph_initializers(tensor_starts);
+          node_inputs.emplace_back(tensor_starts.get_name());
+          metawarenn::Tensor tensor_ends(node_name + "ends", std::vector<int>{int(size)}, ElementType::element_type::float_, ends_vec);
+          graph_->set_graph_initializers(tensor_ends);
+          node_inputs.emplace_back(tensor_ends.get_name());
+          metawarenn::Tensor tensor_axes(node_name + "axes", std::vector<int>{int(size)}, ElementType::element_type::float_, axes_vec);
+          graph_->set_graph_initializers(tensor_axes);
+          node_inputs.emplace_back(tensor_axes.get_name());
+          metawarenn::Tensor tensor_steps(node_name + "steps", std::vector<int>{int(size)}, ElementType::element_type::float_, steps_vec);
+          graph_->set_graph_initializers(tensor_steps);
+          node_inputs.emplace_back(tensor_steps.get_name());
+          auto input_name = slice_node->getInputName(0);
+          node_inputs.emplace_back(input_name);
+          LOG(INFO) << "input_name: " << input_name;
+          auto output_name = slice_node->getResult().generateNodeOutputName(true);
+          node_outputs.emplace_back(output_name);
+          LOG(INFO) << "output_name: " << output_name;
+          break;
+        }
+        case Kinded::Kind::PowNodeKind:
+        {
+          node_op_type = "Pow";
+          auto *pow_node = llvm::cast<PowNode>(node);
+          auto input_name = pow_node->getInputName(0);
+          node_inputs.emplace_back(input_name);
+          LOG(INFO) << "input_name: " << input_name;
+          auto output_name = pow_node->getResult().generateNodeOutputName(true);
+          node_outputs.emplace_back(output_name);
+          LOG(INFO) << "output_name: " << output_name;
+          break;
+        }
+        case Kinded::Kind::TopKNodeKind:
+        {
+          node_op_type = "TopK";
+          auto *topk_node = llvm::cast<TopKNode>(node);
+          auto k_val = topk_node->getK();
+          metawarenn::Tensor k_tensor("K", std::vector<int>{1}, ElementType::element_type::float_, std::vector<float>{float(k_val)});
+          graph_->set_graph_initializers(k_tensor);
+          node_inputs.emplace_back(k_tensor.get_name());
+          auto input_name = topk_node->getInputName(0);
+          node_inputs.emplace_back(input_name);
+          LOG(INFO) << "input_name: " << input_name;
+          auto output_name = std::string(topk_node->getOutputName(0));
+          node_outputs.emplace_back(output_name);
+          LOG(INFO) << "output_name: " << output_name;
+          break;
+        }
+        case Kinded::Kind::ArgMaxNodeKind:
+        {
+          node_op_type = "ArgMax";
+          auto *argmax_node = llvm::cast<ArgMaxNode>(node);
+          metawarenn::Attribute attr_axis("axis", std::vector<int>{int(argmax_node->getAxis())});
+          metawarenn::Attribute attr_keep_dims("keepDims", std::vector<int>{int(argmax_node->getKeepDims())});
+          node_attributes.emplace_back(attr_axis);
+          auto input_name = argmax_node->getInputName(0);
+          node_inputs.emplace_back(input_name);
+          LOG(INFO) << "input_name: " << input_name;
+          auto output_name = argmax_node->getResult().generateNodeOutputName(true);
+          node_outputs.emplace_back(output_name);
+          LOG(INFO) << "output_name: " << output_name;
+          break;
+        }
+        case Kinded::Kind::ArgMinNodeKind:
+        {
+          node_op_type = "ArgMin";
+          auto *argmin_node = llvm::cast<ArgMinNode>(node);
+          metawarenn::Attribute attr_axis("axis", std::vector<int>{int(argmin_node->getAxis())});
+          node_attributes.emplace_back(attr_axis);
+          metawarenn::Attribute attr_keep_dims("keepDims", std::vector<int>{int(argmin_node->getKeepDims())});
+          node_attributes.emplace_back(attr_keep_dims);
+          auto input_name = argmin_node->getInputName(0);
+          node_inputs.emplace_back(input_name);
+          LOG(INFO) << "input_name: " << input_name;
+          auto output_name = argmin_node->getResult().generateNodeOutputName(true);
+          node_outputs.emplace_back(output_name);
+          LOG(INFO) << "output_name: " << output_name;
+          break;
+        }
+        case Kinded::Kind::PReluNodeKind:
+        {
+          node_op_type = "PRelu";
+          auto *prelu_node = llvm::cast<PReluNode>(node);
+          auto input_name = prelu_node->getInputName(0);
+          auto slope = prelu_node->getSlope();
+          if (const auto *BN = llvm::dyn_cast<BroadcastNode>(slope)) {
+            node_inputs.emplace_back(BN->getInput().getNode()->getName());
+          }
+          else if (auto *SN = llvm::dyn_cast<SplatNode>(slope)) {
+            glow::Tensor scalar = {SN->getValue()};
+            auto dims = scalar.dims();
+            std::vector<int> dims_vec(dims.size());
+            int i = 0;
+            for(auto dim: dims)
+              dims_vec[i++] = int(dim);
+            std::vector<float> scalar_data(dims.size());
+            auto handle = scalar.getHandle<float>();
+            i = 0;
+            for (auto elem : handle) {
+              scalar_data[i++] = elem;
+            }
+            node_inputs.emplace_back(SN->getName());
+            metawarenn::Tensor slope_tensor(SN->getName(), dims_vec, ElementType::element_type::float_, scalar_data);
+            graph_->set_graph_initializers(slope_tensor);
+          }
+          node_inputs.emplace_back(input_name);
+          LOG(INFO) << "input_name: " << input_name;
+          auto output_name = prelu_node->getResult().generateNodeOutputName(true);
+          node_outputs.emplace_back(output_name);
+          LOG(INFO) << "output_name: " << output_name;
+          break;
+        }
+        case Kinded::Kind::GatherNodeKind:
+        {
+          node_op_type = "Gather";
+          auto *gather_node = llvm::cast<GatherNode>(node);
+          auto batch_dims = gather_node->getBatchDims();
+          metawarenn::Attribute attr_axis("axis", std::vector<int>{(int)batch_dims});
+          node_attributes.emplace_back(attr_axis);
+          NodeValue indices = gather_node->getIndices();
+          std::vector<int> ind_dims;
+          int i = 0;
+          for(auto dim: indices.dims())
+            ind_dims[i] = dim;
+          if (Constant *c = llvm::dyn_cast<Constant>(indices.getNode())) {
+            auto handle = c->getHandle<int>();
+            auto begin = &handle.raw(0);
+            std::vector<float> data(begin, begin + handle.actualSize());
+            metawarenn::Tensor indices_tensor(indices.getNode()->getName(), ind_dims, ElementType::element_type::float_, data);
+            graph_->set_graph_initializers(indices_tensor);
+          }
+          auto input_name = gather_node->getInputName(0);
+          node_inputs.emplace_back(input_name);
+          LOG(INFO) << "input_name: " << input_name;
+          auto output_name = gather_node->getResult().generateNodeOutputName(true);
+          node_outputs.emplace_back(output_name);
+          LOG(INFO) << "output_name: " << output_name;
+          break;
+        }
         default:
           break;
         }
