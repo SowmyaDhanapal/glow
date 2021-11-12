@@ -214,8 +214,8 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
           node_attributes.emplace_back(attr_beta);
           metawarenn::Attribute attr_size("size", std::vector<int>{int(lrn_node->getHalfWindowSize())});
           node_attributes.emplace_back(attr_size);
-          metawarenn::Attribute attr_size("bias", std::vector<int>{int(lrn_node->getK())});
-          node_attributes.emplace_back(attr_size);
+          metawarenn::Attribute attr_bias("bias", std::vector<int>{int(lrn_node->getK())});
+          node_attributes.emplace_back(attr_bias);
           auto input_name = lrn_node->getInput().generateNodeOutputName(true);
           node_inputs.emplace_back(input_name);
           LOG(INFO) << "input_name: " << input_name;
@@ -299,10 +299,10 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
           node_attributes.emplace_back(attr_alpha);
           metawarenn::Attribute attr_beta("beta", std::vector<int>{int(gemm_node->getBeta())});
           node_attributes.emplace_back(attr_beta);
-          metawarenn::Attribute attr_alpha("transA", std::vector<int>{int(gemm_node->getTransposeA())});
-          node_attributes.emplace_back(attr_alpha);
-          metawarenn::Attribute attr_beta("transB", std::vector<int>{int(gemm_node->getBeta())});
-          node_attributes.emplace_back(attr_beta);
+          metawarenn::Attribute attr_transA("transA", std::vector<int>{int(gemm_node->getTransposeA())});
+          node_attributes.emplace_back(attr_transA);
+          metawarenn::Attribute attr_transB("transB", std::vector<int>{int(gemm_node->getBeta())});
+          node_attributes.emplace_back(attr_transB);
           auto input_name = gemm_node->getInputName(0);
           node_inputs.emplace_back(input_name);
           LOG(INFO) << "input_name: " << input_name;
