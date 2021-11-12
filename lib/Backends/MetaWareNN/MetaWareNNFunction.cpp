@@ -620,6 +620,256 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
           LOG(INFO) << "output_name: " << output_name;
           break;
         }
+        case Kinded::Kind::MulNodeKind:
+        {
+          node_op_type = "Mul";
+          auto *mul_node = llvm::cast<MulNode>(node);
+          auto input1 = mul_node->getLHS().generateNodeOutputName(true);
+          LOG(INFO) << "input_name 1: " << input1;
+          auto input2 = mul_node->getRHS().generateNodeOutputName(true);
+          LOG(INFO) << "input_name 2: " << input2;
+          node_inputs.emplace_back(input1);
+          node_inputs.emplace_back(input2);
+          auto output_name = mul_node->getResult().generateNodeOutputName(true);
+          node_outputs.emplace_back(output_name);
+          LOG(INFO) << "output_name: " << output_name;
+          break;
+        }
+        case Kinded::Kind::DivNodeKind:
+        {
+          node_op_type = "Div";
+          auto *div_node = llvm::cast<DivNode>(node);
+          auto input1 = div_node->getLHS().generateNodeOutputName(true);
+          LOG(INFO) << "input_name 1: " << input1;
+          auto input2 = div_node->getRHS().generateNodeOutputName(true);
+          LOG(INFO) << "input_name 2: " << input2;
+          node_inputs.emplace_back(input1);
+          node_inputs.emplace_back(input2);
+          auto output_name = div_node->getResult().generateNodeOutputName(true);
+          node_outputs.emplace_back(output_name);
+          LOG(INFO) << "output_name: " << output_name;
+          break;
+        }
+        case Kinded::Kind::SubNodeKind:
+        {
+          node_op_type = "Sub";
+          auto *sub_node = llvm::cast<SubNode>(node);
+          auto input1 = sub_node->getLHS().generateNodeOutputName(true);
+          LOG(INFO) << "input_name 1: " << input1;
+          auto input2 = sub_node->getRHS().generateNodeOutputName(true);
+          LOG(INFO) << "input_name 2: " << input2;
+          node_inputs.emplace_back(input1);
+          node_inputs.emplace_back(input2);
+          auto output_name = sub_node->getResult().generateNodeOutputName(true);
+          node_outputs.emplace_back(output_name);
+          LOG(INFO) << "output_name: " << output_name;
+          break;
+        }
+        case Kinded::Kind::AbsNodeKind:
+        {
+          node_op_type = "Abs";
+          auto *abs_node = llvm::cast<AbsNode>(node);
+          auto input_name = abs_node->getInputName(0);
+          node_inputs.emplace_back(input_name);
+          LOG(INFO) << "input_name: " << input_name;
+          auto output_name = abs_node->getResult().generateNodeOutputName(true);
+          node_outputs.emplace_back(output_name);
+          LOG(INFO) << "output_name: " << output_name;
+          break;
+        }
+        case Kinded::Kind::AndNodeKind:
+        {
+          node_op_type = "And";
+          auto *and_node = llvm::cast<AndNode>(node);
+          auto input_name = and_node->getInputName(0);
+          node_inputs.emplace_back(input_name);
+          LOG(INFO) << "input_name: " << input_name;
+          auto output_name = and_node->getResult().generateNodeOutputName(true);
+          node_outputs.emplace_back(output_name);
+          LOG(INFO) << "output_name: " << output_name;
+          break;
+        }
+        case Kinded::Kind::ExpNodeKind:
+        {
+          node_op_type = "Exp";
+          auto *exp_node = llvm::cast<ExpNode>(node);
+          auto input_name = exp_node->getInputName(0);
+          node_inputs.emplace_back(input_name);
+          LOG(INFO) << "input_name: " << input_name;
+          auto output_name = exp_node->getResult().generateNodeOutputName(true);
+          node_outputs.emplace_back(output_name);
+          LOG(INFO) << "output_name: " << output_name;
+          break;
+        }
+        case Kinded::Kind::MaxNodeKind:
+        {
+          node_op_type = "Max";
+          auto *max_node = llvm::cast<MaxNode>(node);
+          auto input_name = max_node->getInputName(0);
+          node_inputs.emplace_back(input_name);
+          LOG(INFO) << "input_name: " << input_name;
+          auto output_name = max_node->getResult().generateNodeOutputName(true);
+          node_outputs.emplace_back(output_name);
+          LOG(INFO) << "output_name: " << output_name;
+          break;
+        }
+        case Kinded::Kind::MinNodeKind:
+        {
+          node_op_type = "Min";
+          auto *min_node = llvm::cast<MinNode>(node);
+          auto input_name = min_node->getInputName(0);
+          node_inputs.emplace_back(input_name);
+          LOG(INFO) << "input_name: " << input_name;
+          auto output_name = min_node->getResult().generateNodeOutputName(true);
+          node_outputs.emplace_back(output_name);
+          LOG(INFO) << "output_name: " << output_name;
+          break;
+        }
+        case Kinded::Kind::PadNodeKind:
+        {
+          node_op_type = "Pad";
+          auto *pad_node = llvm::cast<PadNode>(node);
+          auto pads = pad_node->getPads();
+          metawarenn::Tensor pads_tensor(node_name + "_pads", {4}, ElementType::element_type::float_, std::vector<float>{(float)pads[0], (float)pads[1], (float)pads[2], (float)pads[3]});
+          node_inputs.emplace_back(pads_tensor.get_name());
+          metawarenn::Tensor value_tensor(node_name + "_value", {1}, ElementType::element_type::float_, std::vector<float>{(float)pad_node->getValue()});
+          node_inputs.emplace_back(value_tensor.get_name());
+          metawarenn::Attribute attr_mode("mode", std::vector<int>{int(pad_node->getMode())});
+          node_attributes.emplace_back(attr_mode);
+          auto input_name = pad_node->getInputName(0);
+          node_inputs.emplace_back(input_name);
+          LOG(INFO) << "input_name: " << input_name;
+          auto output_name = pad_node->getResult().generateNodeOutputName(true);
+          node_outputs.emplace_back(output_name);
+          LOG(INFO) << "output_name: " << output_name;
+          break;
+        }
+        case Kinded::Kind::CeilNodeKind:
+        {
+          node_op_type = "Ceil";
+          auto *ceil_node = llvm::cast<CeilNode>(node);
+          auto input_name = ceil_node->getInputName(0);
+          node_inputs.emplace_back(input_name);
+          LOG(INFO) << "input_name: " << input_name;
+          auto output_name = ceil_node->getResult().generateNodeOutputName(true);
+          node_outputs.emplace_back(output_name);
+          LOG(INFO) << "output_name: " << output_name;
+          break;
+        }
+        case Kinded::Kind::FloorNodeKind:
+        {
+          node_op_type = "Floor";
+          auto *floor_node = llvm::cast<FloorNode>(node);
+          auto input_name = floor_node->getInputName(0);
+          node_inputs.emplace_back(input_name);
+          LOG(INFO) << "input_name: " << input_name;
+          auto output_name = floor_node->getResult().generateNodeOutputName(true);
+          node_outputs.emplace_back(output_name);
+          LOG(INFO) << "output_name: " << output_name;
+          break;
+        }
+        case Kinded::Kind::SwishNodeKind:
+        {
+          node_op_type = "HardSwish";
+          auto *swish_node = llvm::cast<SwishNode>(node);
+          auto input_name = swish_node->getInputName(0);
+          node_inputs.emplace_back(input_name);
+          LOG(INFO) << "input_name: " << input_name;
+          auto output_name = swish_node->getResult().generateNodeOutputName(true);
+          node_outputs.emplace_back(output_name);
+          LOG(INFO) << "output_name: " << output_name;
+          break;
+        }
+        case Kinded::Kind::LeakyReluNodeKind:
+        {
+          node_op_type = "LeakyRelu";
+          auto *lrelu_node = llvm::cast<LeakyReluNode>(node);
+          metawarenn::Attribute attr_alpha("alpha", std::vector<int>{(int)lrelu_node->getAlpha()});
+          node_attributes.emplace_back(attr_alpha);
+          auto input_name = lrelu_node->getInputName(0);
+          node_inputs.emplace_back(input_name);
+          LOG(INFO) << "input_name: " << input_name;
+          auto output_name = lrelu_node->getResult().generateNodeOutputName(true);
+          node_outputs.emplace_back(output_name);
+          LOG(INFO) << "output_name: " << output_name;
+          break;
+        }
+        case Kinded::Kind::LogNodeKind:
+        {
+          node_op_type = "Log";
+          auto *log_node = llvm::cast<LogNode>(node);
+          auto input_name = log_node->getInputName(0);
+          node_inputs.emplace_back(input_name);
+          LOG(INFO) << "input_name: " << input_name;
+          auto output_name = log_node->getResult().generateNodeOutputName(true);
+          node_outputs.emplace_back(output_name);
+          LOG(INFO) << "output_name: " << output_name;
+          break;
+        }
+        case Kinded::Kind::MatMulNodeKind:
+        {
+          node_op_type = "MatMul";
+          auto *matmul_node = llvm::cast<MatMulNode>(node);
+          auto input1 = matmul_node->getLHS().generateNodeOutputName(true);
+          LOG(INFO) << "input_name 1: " << input1;
+          auto input2 = matmul_node->getRHS().generateNodeOutputName(true);
+          LOG(INFO) << "input_name 2: " << input2;
+          node_inputs.emplace_back(input1);
+          node_inputs.emplace_back(input2);
+          auto output_name = matmul_node->getResult().generateNodeOutputName(true);
+          node_outputs.emplace_back(output_name);
+          LOG(INFO) << "output_name: " << output_name;
+          break;
+        }
+        case Kinded::Kind::NonMaxSuppressionNodeKind:
+        {
+          node_op_type = "NonMaxSuppression";
+          auto *nms_node = llvm::cast<NonMaxSuppressionNode>(node);
+          metawarenn::Attribute attr_cpb("center_point_box", std::vector<int>{(int)nms_node->getCenterPointBox()});
+          node_attributes.emplace_back(attr_cpb);
+          NodeValue boxes = nms_node->getBoxes();
+          NodeValue scores = nms_node->getScores();
+          std::vector<int> box_dims(boxes.dims().size());
+          std::vector<int> scores_dims(scores.dims().size());
+          int i = 0;
+          for(auto dim: boxes.dims())
+            box_dims[i] = dim;
+          i = 0;
+          for(auto dim: scores.dims())
+            scores_dims[i] = dim;
+          if (Constant *c = llvm::dyn_cast<Constant>(boxes.getNode())) {
+            auto handle = c->getHandle<float>();
+            auto begin = &handle.raw(0);
+            std::vector<float> data(begin, begin + handle.actualSize());
+            metawarenn::Tensor boxes_tensor(boxes.getNode()->getName(), box_dims, ElementType::element_type::float_, data);
+            graph_->set_graph_initializers(boxes_tensor);
+            node_inputs.emplace_back(boxes_tensor.get_name());
+          }
+          if (Constant *c = llvm::dyn_cast<Constant>(scores.getNode())) {
+            auto handle = c->getHandle<float>();
+            auto begin = &handle.raw(0);
+            std::vector<float> data(begin, begin + handle.actualSize());
+            metawarenn::Tensor scores_tensor(scores.getNode()->getName(), scores_dims, ElementType::element_type::float_, data);
+            graph_->set_graph_initializers(scores_tensor);
+            node_inputs.emplace_back(scores_tensor.get_name());
+          }
+          metawarenn::Tensor max_out_box_tensor(node_name + "_max_out_box", {1}, ElementType::element_type::float_, std::vector<float>{float(nms_node->getMaxOutputBoxesPerClass())});
+          graph_->set_graph_initializers(max_out_box_tensor);
+          node_inputs.emplace_back(max_out_box_tensor.get_name());
+          metawarenn::Tensor iou_thresh_tensor(node_name + "_iou_thresh", {1}, ElementType::element_type::float_, std::vector<float>{nms_node->getIouThreshold()});
+          graph_->set_graph_initializers(iou_thresh_tensor);
+          node_inputs.emplace_back(iou_thresh_tensor.get_name());
+          metawarenn::Tensor score_threshold_tensor(node_name + "_score_thresh", {1}, ElementType::element_type::float_, std::vector<float>{nms_node->getScoreThreshold()});
+          graph_->set_graph_initializers(score_threshold_tensor);
+          node_inputs.emplace_back(score_threshold_tensor.get_name());
+          auto input_name = nms_node->getInputName(0);
+          node_inputs.emplace_back(input_name);
+          LOG(INFO) << "input_name: " << input_name;
+          auto output_name = nms_node->getOutputName(0).str();
+          node_outputs.emplace_back(output_name);
+          LOG(INFO) << "output_name: " << output_name;
+          break;
+        }
         default:
           break;
         }
