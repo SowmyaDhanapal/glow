@@ -385,10 +385,10 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
         {
           node_op_type = "Clip";
           auto *clip_node = llvm::cast<ClipNode>(node);
-          metawarenn::Tensor min_tensor("min", std::vector<int>{1}, ElementType::element_type::float_, std::vector<float>{(clip_node->getMin())});
+          metawarenn::Tensor min_tensor("min", std::vector<int>{1}, ElementType::element_type::float_, std::vector<float>{(float)clip_node->getMin()});
           graph_->set_graph_initializers(min_tensor);
           node_inputs.emplace_back(min_tensor.get_name());
-          metawarenn::Tensor max_tensor("max", std::vector<int>{1}, ElementType::element_type::float_, std::vector<float>{(clip_node->getMax())});
+          metawarenn::Tensor max_tensor("max", std::vector<int>{1}, ElementType::element_type::float_, std::vector<float>{(float)clip_node->getMax()});
           graph_->set_graph_initializers(max_tensor);
           node_inputs.emplace_back(min_tensor.get_name());
           auto input_name = clip_node->getInputName(0);
@@ -869,6 +869,260 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
           node_inputs.emplace_back(input_name);
           LOG(INFO) << "input_name: " << input_name;
           auto output_name = nms_node->getOutputName(0).str();
+          node_outputs.emplace_back(output_name);
+          LOG(INFO) << "output_name: " << output_name;
+          break;
+        }
+        case Kinded::Kind::NotNodeKind:
+        {
+          node_op_type = "Not";
+          auto *not_node = llvm::cast<NotNode>(node);
+          auto input_name = not_node->getInputName(0);
+          node_inputs.emplace_back(input_name);
+          LOG(INFO) << "input_name: " << input_name;
+          auto output_name = not_node->getResult().generateNodeOutputName(true);
+          node_outputs.emplace_back(output_name);
+          LOG(INFO) << "output_name: " << output_name;
+          break;
+        }
+        case Kinded::Kind::BatchedReduceMeanNodeKind:
+        {
+          node_op_type = "ReduceMean";
+          auto *reduce_mean_node = llvm::cast<BatchedReduceMeanNode>(node);
+          auto axes = reduce_mean_node->getAxes();
+          std::vector<int> axes_vec(axes.size());
+          int i = 0;
+          for(auto ax: axes_vec)
+            axes_vec[i++] = axes[i];
+          metawarenn::Attribute attr_axes("axes", axes_vec);
+          node_attributes.emplace_back(attr_axes);
+          auto input_name = reduce_mean_node->getInputName(0);
+          node_inputs.emplace_back(input_name);
+          LOG(INFO) << "input_name: " << input_name;
+          auto output_name = reduce_mean_node->getResult().generateNodeOutputName(true);
+          node_outputs.emplace_back(output_name);
+          LOG(INFO) << "output_name: " << output_name;
+          break;
+        }
+        case Kinded::Kind::BatchedReduceMinNodeKind:
+        {
+          node_op_type = "ReduceMin";
+          auto *reduce_min_node = llvm::cast<BatchedReduceMinNode>(node);
+          auto axes = reduce_min_node->getAxes();
+          std::vector<int> axes_vec(axes.size());
+          int i = 0;
+          for(auto ax: axes_vec)
+            axes_vec[i++] = axes[i];
+          metawarenn::Attribute attr_axes("axes", axes_vec);
+          node_attributes.emplace_back(attr_axes);
+          auto input_name = reduce_min_node->getInputName(0);
+          node_inputs.emplace_back(input_name);
+          LOG(INFO) << "input_name: " << input_name;
+          auto output_name = reduce_min_node->getResult().generateNodeOutputName(true);
+          node_outputs.emplace_back(output_name);
+          LOG(INFO) << "output_name: " << output_name;
+          break;
+        }
+        case Kinded::Kind::BatchedReduceMaxNodeKind:
+        {
+          node_op_type = "ReduceMax";
+          auto *reduce_max_node = llvm::cast<BatchedReduceMaxNode>(node);
+          auto axes = reduce_max_node->getAxes();
+          std::vector<int> axes_vec(axes.size());
+          int i = 0;
+          for(auto ax: axes_vec)
+            axes_vec[i++] = axes[i];
+          metawarenn::Attribute attr_axes("axes", axes_vec);
+          node_attributes.emplace_back(attr_axes);
+          auto input_name = reduce_max_node->getInputName(0);
+          node_inputs.emplace_back(input_name);
+          LOG(INFO) << "input_name: " << input_name;
+          auto output_name = reduce_max_node->getResult().generateNodeOutputName(true);
+          node_outputs.emplace_back(output_name);
+          LOG(INFO) << "output_name: " << output_name;
+          break;
+        }
+        case Kinded::Kind::BatchedReduceSumSquareNodeKind:
+        case Kinded::Kind::BatchedReduceAddNodeKind:
+        {
+          node_op_type = "ReduceSum";
+          auto *reduce_add_node = llvm::cast<BatchedReduceAddNode>(node);
+          metawarenn::Attribute attr_axes("axes", std::vector<int>{(int)reduce_add_node->getAxis()});
+          node_attributes.emplace_back(attr_axes);
+          auto input_name = reduce_add_node->getInputName(0);
+          node_inputs.emplace_back(input_name);
+          LOG(INFO) << "input_name: " << input_name;
+          auto output_name = reduce_add_node->getResult().generateNodeOutputName(true);
+          node_outputs.emplace_back(output_name);
+          LOG(INFO) << "output_name: " << output_name;
+          break;
+        }
+        case Kinded::Kind::ResizeNearestNodeKind:
+        {
+          node_op_type = "Resize";
+          auto *resize_near_node = llvm::cast<ResizeNearestNode>(node);
+          auto scales = resize_near_node->getScale();
+          std::vector<float> scale_vec(scales.size());
+          int i = 0;
+          for(auto scale: scales)
+            scale_vec[i++] = (float)scale;
+          metawarenn::Tensor scales_tensor(node_name + "_scales", std::vector<int>{(int)scales.size()}, ElementType::element_type::float_, scale_vec);
+          graph_->set_graph_initializers(scales_tensor);
+          node_inputs.emplace_back(scales_tensor.get_name());
+          metawarenn::Attribute attr_trans_mode("coordinate_transformation_mode", std::vector<std::string>{"asymmetric"});
+          node_attributes.emplace_back(attr_trans_mode);
+          metawarenn::Attribute attr_mode("mode", std::vector<std::string>{"nearest"});
+          node_attributes.emplace_back(attr_mode);
+          metawarenn::Attribute attr_near_mode("nearest_mode", std::vector<std::string>{"floor"});
+          node_attributes.emplace_back(attr_near_mode);
+          auto input_name = resize_near_node->getInputName(0);
+          node_inputs.emplace_back(input_name);
+          LOG(INFO) << "input_name: " << input_name;
+          auto output_name = resize_near_node->getResult().generateNodeOutputName(true);
+          node_outputs.emplace_back(output_name);
+          LOG(INFO) << "output_name: " << output_name;
+          break;
+        }
+        case Kinded::Kind::ResizeBilinearNodeKind:
+        {
+          node_op_type = "Resize";
+          auto *resize_bilinear_node = llvm::cast<ResizeBilinearNode>(node);
+          auto scales = resize_bilinear_node->getScale();
+          std::vector<float> scale_vec(scales.size());
+          int i = 0;
+          for(auto scale: scales)
+            scale_vec[i++] = (float)scale;
+          metawarenn::Tensor scales_tensor(node_name + "_scales", std::vector<int>{(int)scales.size()}, ElementType::element_type::float_, scale_vec);
+          graph_->set_graph_initializers(scales_tensor);
+          node_inputs.emplace_back(scales_tensor.get_name());
+          metawarenn::Attribute attr_trans_mode("coordinate_transformation_mode", std::vector<std::string>{"asymmetric"});
+          node_attributes.emplace_back(attr_trans_mode);
+          metawarenn::Attribute attr_mode("mode", std::vector<std::string>{"linear"});
+          node_attributes.emplace_back(attr_mode);
+          auto input_name = resize_bilinear_node->getInputName(0);
+          node_inputs.emplace_back(input_name);
+          LOG(INFO) << "input_name: " << input_name;
+          auto output_name = resize_bilinear_node->getResult().generateNodeOutputName(true);
+          node_outputs.emplace_back(output_name);
+          LOG(INFO) << "output_name: " << output_name;
+          break;
+        }
+        case Kinded::Kind::ROIAlignNodeKind:
+        {
+          node_op_type = "RoiAlign";
+          auto *roi_align_node = llvm::cast<ROIAlignNode>(node);
+          std::vector<int> roi_dims;
+          std::vector<int> batch_ind_dims;
+          NodeValue boxes = roi_align_node->getBoxes();
+          NodeValue batch_indices = roi_align_node->getBatchIndices();
+          int i = 0;
+          for(auto dim: boxes.dims())
+            roi_dims[i] = dim;
+          i = 0;
+          for(auto dim: batch_indices.dims())
+            batch_ind_dims[i] = dim;
+          if (Constant *c = llvm::dyn_cast<Constant>(boxes.getNode())) {
+            auto handle = c->getHandle<int>();
+            auto begin = &handle.raw(0);
+            std::vector<float> data(begin, begin + handle.actualSize());
+            metawarenn::Tensor rois_tensor(boxes.getNode()->getName(), roi_dims, ElementType::element_type::float_, data);
+            graph_->set_graph_initializers(rois_tensor);
+            node_inputs.emplace_back(rois_tensor.get_name());
+          }
+          if (Constant *c = llvm::dyn_cast<Constant>(batch_indices.getNode())) {
+            auto handle = c->getHandle<int>();
+            auto begin = &handle.raw(0);
+            std::vector<float> data(begin, begin + handle.actualSize());
+            metawarenn::Tensor batch_ind_tensor(batch_indices.getNode()->getName(), roi_dims, ElementType::element_type::float_, data);
+            graph_->set_graph_initializers(batch_ind_tensor);
+            node_inputs.emplace_back(batch_ind_tensor.get_name());
+          }
+          switch(roi_align_node->getMode()) {
+            case PoolingMode::AVG: {
+              metawarenn::Attribute attr_mode("mode", std::vector<std::string>{"avg"});
+              node_attributes.emplace_back(attr_mode);
+              break;
+            }
+            case PoolingMode::MAX: {
+              metawarenn::Attribute attr_mode("mode", std::vector<std::string>{"max"});
+              node_attributes.emplace_back(attr_mode);
+              break;
+            }
+          }
+          metawarenn::Attribute attr_out_h("output_height", std::vector<int>{(int)roi_align_node->getOutputHeight()});
+          node_attributes.emplace_back(attr_out_h);
+          metawarenn::Attribute attr_out_w("output_width", std::vector<int>{(int)roi_align_node->getOutputWidth()});
+          node_attributes.emplace_back(attr_out_w);
+          metawarenn::Attribute attr_s_ratio("sampling_ratio", std::vector<int>{(int)roi_align_node->getSamplingRatio()});
+          node_attributes.emplace_back(attr_s_ratio);
+          metawarenn::Attribute attr_s_scale("spatial_scale", std::vector<float>{(float)roi_align_node->getSpatialScale()});
+          node_attributes.emplace_back(attr_s_scale);
+          auto input_name = roi_align_node->getInputName(0);
+          node_inputs.emplace_back(input_name);
+          LOG(INFO) << "input_name: " << input_name;
+          auto output_name = roi_align_node->getResult().generateNodeOutputName(true);
+          node_outputs.emplace_back(output_name);
+          LOG(INFO) << "output_name: " << output_name;
+          break;
+        }
+        case Kinded::Kind::RoundNodeKind:
+        {
+          node_op_type = "Round";
+          auto *round_node = llvm::cast<RoundNode>(node);
+          auto input_name = round_node->getInputName(0);
+          node_inputs.emplace_back(input_name);
+          LOG(INFO) << "input_name: " << input_name;
+          auto output_name = round_node->getResult().generateNodeOutputName(true);
+          node_outputs.emplace_back(output_name);
+          LOG(INFO) << "output_name: " << output_name;
+          break;
+        }
+        case Kinded::Kind::SigmoidNodeKind:
+        {
+          node_op_type = "Sigmoid";
+          auto *sigmoid_node = llvm::cast<SigmoidNode>(node);
+          auto input_name = sigmoid_node->getInputName(0);
+          node_inputs.emplace_back(input_name);
+          LOG(INFO) << "input_name: " << input_name;
+          auto output_name = sigmoid_node->getResult().generateNodeOutputName(true);
+          node_outputs.emplace_back(output_name);
+          LOG(INFO) << "output_name: " << output_name;
+          break;
+        }
+        case Kinded::Kind::SpaceToDepthNodeKind:
+        {
+          node_op_type = "SpaceToDepth";
+          auto *space_depth_node = llvm::cast<SpaceToDepthNode>(node);
+          metawarenn::Attribute attr_b_size("blocksize", std::vector<int>{(int)space_depth_node->getBlockSize()});
+          node_attributes.emplace_back(attr_b_size);
+          auto input_name = space_depth_node->getInputName(0);
+          node_inputs.emplace_back(input_name);
+          LOG(INFO) << "input_name: " << input_name;
+          auto output_name = space_depth_node->getResult().generateNodeOutputName(true);
+          node_outputs.emplace_back(output_name);
+          LOG(INFO) << "output_name: " << output_name;
+          break;
+        }
+        case Kinded::Kind::SqrtNodeKind:
+        {
+          node_op_type = "Sqrt";
+          auto *sqrt_node = llvm::cast<SqrtNode>(node);
+          auto input_name = sqrt_node->getInputName(0);
+          node_inputs.emplace_back(input_name);
+          LOG(INFO) << "input_name: " << input_name;
+          auto output_name = sqrt_node->getResult().generateNodeOutputName(true);
+          node_outputs.emplace_back(output_name);
+          LOG(INFO) << "output_name: " << output_name;
+          break;
+        }
+        case Kinded::Kind::TanhNodeKind:
+        {
+          node_op_type = "Tanh";
+          auto *tanh_node = llvm::cast<TanhNode>(node);
+          auto input_name = tanh_node->getInputName(0);
+          node_inputs.emplace_back(input_name);
+          LOG(INFO) << "input_name: " << input_name;
+          auto output_name = tanh_node->getResult().generateNodeOutputName(true);
           node_outputs.emplace_back(output_name);
           LOG(INFO) << "output_name: " << output_name;
           break;
