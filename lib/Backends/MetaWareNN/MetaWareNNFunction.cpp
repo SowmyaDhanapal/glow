@@ -385,10 +385,12 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
         {
           node_op_type = "Clip";
           auto *clip_node = llvm::cast<ClipNode>(node);
-          metawarenn::Attribute attr_min("min", std::vector<float>{(clip_node->getMax())});
-          node_attributes.emplace_back(attr_min);
-          metawarenn::Attribute attr_max("max", std::vector<float>{(clip_node->getMax())});
-          node_attributes.emplace_back(attr_max);
+          metawarenn::Tensor min_tensor("min", std::vector<int>{1}, ElementType::element_type::float_, std::vector<float>{(clip_node->getMin())});
+          graph_->set_graph_initializers(min_tensor);
+          node_inputs.emplace_back(min_tensor.get_name());
+          metawarenn::Tensor max_tensor("max", std::vector<int>{1}, ElementType::element_type::float_, std::vector<float>{(clip_node->getMax())});
+          graph_->set_graph_initializers(max_tensor);
+          node_inputs.emplace_back(min_tensor.get_name());
           auto input_name = clip_node->getInputName(0);
           node_inputs.emplace_back(input_name);
           auto output_name = clip_node->getResult().generateNodeOutputName(true);
@@ -611,6 +613,7 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
             std::vector<float> data(begin, begin + handle.actualSize());
             metawarenn::Tensor indices_tensor(indices.getNode()->getName(), ind_dims, ElementType::element_type::float_, data);
             graph_->set_graph_initializers(indices_tensor);
+          node_inputs.emplace_back(indices_tensor.get_name());
           }
           auto input_name = gather_node->getInputName(0);
           node_inputs.emplace_back(input_name);
@@ -730,9 +733,9 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
           node_op_type = "Pad";
           auto *pad_node = llvm::cast<PadNode>(node);
           auto pads = pad_node->getPads();
-          metawarenn::Tensor pads_tensor(node_name + "_pads", {4}, ElementType::element_type::float_, std::vector<float>{(float)pads[0], (float)pads[1], (float)pads[2], (float)pads[3]});
+          metawarenn::Tensor pads_tensor(node_name + "_pads", std::vector<int>{(int)pads.size()}, ElementType::element_type::float_, std::vector<float>{(float)pads[0], (float)pads[1], (float)pads[2], (float)pads[3]});
           node_inputs.emplace_back(pads_tensor.get_name());
-          metawarenn::Tensor value_tensor(node_name + "_value", {1}, ElementType::element_type::float_, std::vector<float>{(float)pad_node->getValue()});
+          metawarenn::Tensor value_tensor(node_name + "_value", std::vector<int>{1}, ElementType::element_type::float_, std::vector<float>{(float)pad_node->getValue()});
           node_inputs.emplace_back(value_tensor.get_name());
           metawarenn::Attribute attr_mode("mode", std::vector<int>{int(pad_node->getMode())});
           node_attributes.emplace_back(attr_mode);
@@ -853,13 +856,13 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
             graph_->set_graph_initializers(scores_tensor);
             node_inputs.emplace_back(scores_tensor.get_name());
           }
-          metawarenn::Tensor max_out_box_tensor(node_name + "_max_out_box", {1}, ElementType::element_type::float_, std::vector<float>{float(nms_node->getMaxOutputBoxesPerClass())});
+          metawarenn::Tensor max_out_box_tensor(node_name + "_max_out_box", std::vector<int>{1}, ElementType::element_type::float_, std::vector<float>{float(nms_node->getMaxOutputBoxesPerClass())});
           graph_->set_graph_initializers(max_out_box_tensor);
           node_inputs.emplace_back(max_out_box_tensor.get_name());
-          metawarenn::Tensor iou_thresh_tensor(node_name + "_iou_thresh", {1}, ElementType::element_type::float_, std::vector<float>{nms_node->getIouThreshold()});
+          metawarenn::Tensor iou_thresh_tensor(node_name + "_iou_thresh", std::vector<int>{1}, ElementType::element_type::float_, std::vector<float>{nms_node->getIouThreshold()});
           graph_->set_graph_initializers(iou_thresh_tensor);
           node_inputs.emplace_back(iou_thresh_tensor.get_name());
-          metawarenn::Tensor score_threshold_tensor(node_name + "_score_thresh", {1}, ElementType::element_type::float_, std::vector<float>{nms_node->getScoreThreshold()});
+          metawarenn::Tensor score_threshold_tensor(node_name + "_score_thresh", std::vector<int>{1}, ElementType::element_type::float_, std::vector<float>{nms_node->getScoreThreshold()});
           graph_->set_graph_initializers(score_threshold_tensor);
           node_inputs.emplace_back(score_threshold_tensor.get_name());
           auto input_name = nms_node->getInputName(0);
