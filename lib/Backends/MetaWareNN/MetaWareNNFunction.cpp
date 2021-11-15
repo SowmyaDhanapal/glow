@@ -332,8 +332,6 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
         {
           node_op_type = "BatchNormalization";
           auto *batchnorm_node = llvm::cast<BatchNormalizationNode>(node);
-          batchnorm_node->getEpsilon();
-          batchnorm_node->getMomentum();
           auto bias_node_value = batchnorm_node->getBias();
           auto bias_name = bias_node_value.generateNodeOutputName(true);
           LOG(INFO) << "bias_name: " << bias_name;
@@ -355,6 +353,46 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
           auto data_type = type.getElementType();
           metawarenn::Tensor m_bias_tensor(bias_name, bias_dims, get_mwnn_type_glow(data_type), bias);
           graph_->set_graph_initializers(m_bias_tensor);
+          auto mean = batchnorm_node->getMean();
+          auto var = batchnorm_node->getVar();
+          auto scale = batchnorm_node->getScale();
+          std::vector<int> mean_dims(mean.dims().size());
+          std::vector<int> var_dims(var.dims().size());
+          std::vector<int> scale_dims(scale.dims().size());
+
+          i = 0;
+          for(auto dim: mean.dims())
+            mean_dims[i] = dim;
+          i = 0;
+          for(auto dim: var.dims())
+            var_dims[i] = dim;
+          i = 0;
+          for(auto dim: scale.dims())
+            scale_dims[i] = dim;
+          if (Constant *c = llvm::dyn_cast<Constant>(mean.getNode())) {
+            auto handle = c->getHandle<float>();
+            auto begin = &handle.raw(0);
+            std::vector<float> data(begin, begin + handle.actualSize());
+            metawarenn::Tensor mean_tensor(mean.getNode()->getName(), mean_dims, ElementType::element_type::float_, data);
+            graph_->set_graph_initializers(mean_tensor);
+            node_inputs.emplace_back(mean_tensor.get_name());
+          }
+          if (Constant *c = llvm::dyn_cast<Constant>(var.getNode())) {
+            auto handle = c->getHandle<float>();
+            auto begin = &handle.raw(0);
+            std::vector<float> data(begin, begin + handle.actualSize());
+            metawarenn::Tensor var_tensor(var.getNode()->getName(), var_dims, ElementType::element_type::float_, data);
+            graph_->set_graph_initializers(var_tensor);
+            node_inputs.emplace_back(var_tensor.get_name());
+          }
+          if (Constant *c = llvm::dyn_cast<Constant>(mean.getNode())) {
+            auto handle = c->getHandle<float>();
+            auto begin = &handle.raw(0);
+            std::vector<float> data(begin, begin + handle.actualSize());
+            metawarenn::Tensor scale_tensor(scale.getNode()->getName(), scale_dims, ElementType::element_type::float_, data);
+            graph_->set_graph_initializers(scale_tensor);
+            node_inputs.emplace_back(scale_tensor.get_name());
+          }
           metawarenn::Attribute attr_epsilon("epsilon", std::vector<float>{batchnorm_node->getEpsilon()});
           node_attributes.emplace_back(attr_epsilon);
           metawarenn::Attribute attr_momentum("momentum", std::vector<float>{batchnorm_node->getMomentum()});
@@ -1123,6 +1161,87 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
           node_inputs.emplace_back(input_name);
           LOG(INFO) << "input_name: " << input_name;
           auto output_name = tanh_node->getResult().generateNodeOutputName(true);
+          node_outputs.emplace_back(output_name);
+          LOG(INFO) << "output_name: " << output_name;
+          break;
+        }
+        case Kinded::Kind::TileNodeKind:
+        {
+          node_op_type = "Tile";
+          auto *tile_node = llvm::cast<TileNode>(node);
+          std::vector<std::pair<unsigned_t, unsigned_t>> info;
+          std::vector<size_t> repeats;
+          const TileNode *tile = tile_node;
+          while (tile) {
+            info.insert(info.begin(), {tile->getAxis(), tile->getCount()});
+            if (const auto *TN = llvm::dyn_cast<TileNode>(tile->getInput().getNode())) {
+              tile = TN;
+            } else {
+              break;
+            }
+          }
+          if (&repeats) {
+            unsigned_t numDims = tile->getInput().dims().size();
+            auto aB = info.begin();
+            for (unsigned_t i = 0; i < numDims; ++i, ++aB) {
+              if (aB == info.end() || aB->first != i) {
+                aB = info.insert(aB, {i, 1});
+              }
+            }
+            for (size_t b = 0, e = info.size(); b < e; ++b) {
+              repeats.push_back(info[b].second);
+            }
+          }
+          auto repeats_arr = llvm::makeArrayRef(repeats);
+          std::vector<float> repeats_vec(repeats_arr.size());
+          int i = 0;
+          for(auto rep: repeats_arr)
+            repeats_vec[i++] = (float)rep;
+          metawarenn::Tensor scales_tensor(node_name + "_repeats", std::vector<int>{(int)repeats_arr.size()}, ElementType::element_type::float_, repeats_vec);
+          graph_->set_graph_initializers(scales_tensor);
+          auto input_name = tile_node->getInputName(0);
+          node_inputs.emplace_back(input_name);
+          LOG(INFO) << "input_name: " << input_name;
+          auto output_name = tile_node->getResult().generateNodeOutputName(true);
+          node_outputs.emplace_back(output_name);
+          LOG(INFO) << "output_name: " << output_name;
+          break;
+        }
+        case Kinded::Kind::ConvTransposeNodeKind:
+        {
+          node_op_type = "ConvTranspose";
+          auto *conv_trans_node = llvm::cast<ConvTransposeNode>(node);
+          auto kernels = conv_trans_node->getKernels();
+          auto dilations = conv_trans_node->getDilation();
+          auto strides = conv_trans_node->getStrides();
+          auto pads = conv_trans_node->getPads();
+          auto group = conv_trans_node->getGroup();
+          metawarenn::Attribute attr_dilate("dilations", std::vector<int>{int(dilations[0]), int(dilations[1])});
+          node_attributes.emplace_back(attr_dilate);
+          metawarenn::Attribute attr_group("group", std::vector<int>{int(group)});
+          node_attributes.emplace_back(attr_group);
+          metawarenn::Attribute attr_kernel_shape("kernel_shape", std::vector<int>{(int)kernels[0], (int)kernels[1]});
+          node_attributes.emplace_back(attr_kernel_shape);
+          auto input_dims = conv_trans_node->getInput().dims();
+          PaddingTLBR pdim(pads);
+          ShapeHW kdim(kernels);
+          ShapeHW sdim(strides);
+          int depth = (int)input_dims[0] * (int)group;
+          int outsx = (input_dims[1] - 1) * sdim.height + (kdim.height - 1) * dilations[0] + 1 -
+                        pdim.top - pdim.bottom;
+          int outsy = (input_dims[2] - 1) * sdim.width + (kdim.width - 1) * dilations[1] + 1 -
+                        pdim.left - pdim.right;
+          std::vector<int> output_shape = {(int)input_dims[0], outsx, outsy, depth};
+          metawarenn::Attribute attr_output_shape("output_shape", output_shape);
+          node_attributes.emplace_back(attr_kernel_shape);
+          metawarenn::Attribute attr_pad("pads", std::vector<int>{int(pads[0]), int(pads[1]), int(pads[2]), int(pads[3])});
+          node_attributes.emplace_back(attr_pad);
+          metawarenn::Attribute attr_stride("strides", std::vector<int>{int(strides[0]), int(strides[1])});
+          node_attributes.emplace_back(attr_stride);
+          auto input_name = conv_trans_node->getInputName(0);
+          node_inputs.emplace_back(input_name);
+          LOG(INFO) << "input_name: " << input_name;
+          auto output_name = conv_trans_node->getResult().generateNodeOutputName(true);
           node_outputs.emplace_back(output_name);
           LOG(INFO) << "output_name: " << output_name;
           break;
