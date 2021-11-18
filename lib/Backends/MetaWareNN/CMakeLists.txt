@@ -37,15 +37,10 @@ add_library(MetaWareNN
             metawarenn_lib/op/split.cc
             metawarenn_lib/op/strided_slice.cc
             metawarenn_lib/op/pad.cc
-            metawarenn_lib/op/dense.cc
-            metawarenn_lib/op/batch_flatten.cc
-            metawarenn_lib/op/bias_add.cc
-            metawarenn_lib/op/divide.cc
             metawarenn_lib/op/exp.cc
             metawarenn_lib/op/max.cc
             metawarenn_lib/op/maximum.cc
             metawarenn_lib/op/minimum.cc
-            metawarenn_lib/op/subtract.cc
             metawarenn_lib/op/sum.cc
             metawarenn_lib/op/channel_shuffle.cc
             metawarenn_lib/op/fully_connected.cc
@@ -100,6 +95,7 @@ add_library(MetaWareNN
             metawarenn_lib/op/dequantize_linear.cc
             metawarenn_lib/op/argmin.cc
             metawarenn_lib/op/reduce_max.cc
+            metawarenn_lib/op/dropout.cc
             metawarenn_lib/optimizer/metawarenn_optimizer.cc
             metawarenn_lib/optimizer/remove_reshape.cc
             metawarenn_lib/optimizer/fuse_relu.cc
