@@ -4,6 +4,7 @@
 #include "glow/Graph/Utils.h"
 #include "glow/Backend/BackendUtils.h"
 #include "glow/Backend/CompiledFunction.h"
+#include "glow/Graph/NodeValue.h"
 
 #include "metawarenn_lib/metawarenn_graph.h"
 #include "metawarenn_lib/metawarenn_utils.h"

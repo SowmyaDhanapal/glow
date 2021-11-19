@@ -1,12 +1,70 @@
 #include "MetaWareNNFunction.h"
 
 namespace metawarenn {
+std::set<Kinded::Kind> onnx_unsupported_nodes = {Kinded::Kind::ChannelShuffleNodeKind};
 
+// Converts the ONNX unsupported nodes in GLOW to modified ops and add it in GLOW function
+void convert_glow_to_onnx(Function *F)
+{
+  GraphPostOrderVisitor visitor(*F);
+  auto node_list = visitor.getPostOrder();
+  for (auto *node : node_list) {
+    if(onnx_unsupported_nodes.count(node->getKind())) {
+      switch (node->getKind())
+      {
+        //ChannelShuffle -> Reshape + Transpose + Reshape
+        case Kinded::Kind::ChannelShuffleNodeKind:
+        {
+          auto *channel_shuffle_node = llvm::dyn_cast<ChannelShuffleNode>(node);
+          auto input = channel_shuffle_node->getInput();
+          auto group = channel_shuffle_node->getGroup();
+          auto kernel = channel_shuffle_node->getKernel();
+          auto inDims = input.dims();
+
+          ShapeVector dims(inDims.begin(), inDims.end());
+          auto D = dims[kernel];
+          assert(D % group == 0);
+
+          dims.erase(dims.begin() + kernel);
+          dims.insert(dims.begin() + kernel, D / group);
+          dims.insert(dims.begin() + kernel, group);
+          // Update the Shape Order for NHWC to NCHW
+          ShapeVector new_dims(dims.size());
+          new_dims[1] = dims[3];
+          new_dims[2] = dims[4];
+          new_dims[3] = dims[1];
+          new_dims[4] = dims[2];
+          new_dims[0] = dims[0];
+          auto *R1 = F->createReshape(channel_shuffle_node->getName().str() + "_reshape1", input, new_dims);
+          std::vector<unsigned_t> transpose(dims.size());
+          for (size_t i = 0; i < transpose.size(); i++) {
+            transpose[i] = i;
+          }
+          // Update the Permutation Order for NHWC to NCHW
+          std::vector<unsigned_t> new_transpose(transpose.begin(), transpose.end());
+          new_transpose[1] = transpose[2];
+          new_transpose[2] = transpose[1];
+          auto *T = F->createTranspose(channel_shuffle_node->getName().str() + "_transpose", R1,
+                                      new_transpose, R1->getLayout());
+          // Update the Shape Order for NHWC to NCHW
+          ShapeVector new_in_dims(inDims.begin(), inDims.end());
+          new_in_dims[1] = inDims[3];
+          new_in_dims[3] = inDims[1];
+          auto *R2 = F->createReshape(channel_shuffle_node->getName().str() + "_reshape2", T, new_in_dims,
+                                      T->getLayout());
+          channel_shuffle_node->getResult().replaceAllUsesOfWith(R2->getResult());
+          F->eraseNode(channel_shuffle_node); // Remove the ChannelShuffle Node from GLOW Function
+        }
+      }
+    }
+  }
+}
 
 MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function *F)
     : CompiledFunction(std::move(bundle)) {
     findIOPlaceholders(F);
     graph_count++;
+    convert_glow_to_onnx(F);
     std::string subgraph_name = "MetaWareNN_" + std::to_string(graph_count);
 
     /*Create MetaWareNN High Level Graph Representation from Glow SubGraph Function*/
@@ -19,6 +77,7 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
     GraphPostOrderVisitor visitor(*F);
     auto node_list = visitor.getPostOrder();
     std::string global_output_name;
+    std::string ignored_transpose_node;
     for (auto *node : node_list) {
         LOG(INFO) << "==============================================================================================================";
         std::string node_name;
@@ -171,8 +230,12 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
         {
           node_op_type = "Transpose";
           auto *transpose_node = llvm::cast<TransposeNode>(node);
-          auto perm = transpose_node->getShuffle();
-          metawarenn::Attribute attr_pads("perm", std::vector<int>{int(perm[0]), int(perm[1]), int(perm[2]), int(perm[3])});
+          auto shuffle = transpose_node->getShuffle();
+          std::vector<int> perm(shuffle.size());
+          int i = 0;
+          for(auto s: shuffle)
+            perm[i++] = (int)s;
+          metawarenn::Attribute attr_pads("perm", perm);
           node_attributes.emplace_back(attr_pads);
           auto input_name = transpose_node->getInput().generateNodeOutputName(true);
           node_inputs.emplace_back(input_name);
@@ -180,6 +243,15 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
           auto output_name = transpose_node->getResult().generateNodeOutputName(true);
           node_outputs.emplace_back(output_name);
           LOG(INFO) << "output_name: " << output_name;
+          auto input = transpose_node->getInput().getNode();
+          /* Checks if transpose layer lies after the listed nodes(intended for NCHW -> NHWC),
+            if so ignore the Transpose node to maintain the NCHW order*/
+          if (llvm::dyn_cast<ConvolutionNode>(input) ||
+              llvm::dyn_cast<AvgPoolNode>(input) ||
+              llvm::dyn_cast<MaxPoolNode>(input) ||
+              llvm::dyn_cast<SpaceToDepthNode>(input)) {
+                ignored_transpose_node = node_name;
+          }
           break;
         }
         case Kinded::Kind::ReshapeNodeKind:
@@ -211,13 +283,13 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
         {
           node_op_type = "LRN";
           auto *lrn_node = llvm::cast<LocalResponseNormalizationNode>(node);
-          metawarenn::Attribute attr_alpha("alpha", std::vector<int>{int(lrn_node->getAlpha())});
+          metawarenn::Attribute attr_alpha("alpha", std::vector<float>{float(lrn_node->getAlpha())});
           node_attributes.emplace_back(attr_alpha);
-          metawarenn::Attribute attr_beta("beta", std::vector<int>{int(lrn_node->getBeta())});
+          metawarenn::Attribute attr_beta("beta", std::vector<float>{float(lrn_node->getBeta())});
           node_attributes.emplace_back(attr_beta);
           metawarenn::Attribute attr_size("size", std::vector<int>{int(2 * lrn_node->getHalfWindowSize() + 1)});
           node_attributes.emplace_back(attr_size);
-          metawarenn::Attribute attr_bias("bias", std::vector<int>{int(lrn_node->getK())});
+          metawarenn::Attribute attr_bias("bias", std::vector<float>{float(lrn_node->getK())});
           node_attributes.emplace_back(attr_bias);
           auto input_name = lrn_node->getInput().generateNodeOutputName(true);
           node_inputs.emplace_back(input_name);
@@ -301,13 +373,13 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
           data_type = type.getElementType();
           metawarenn::Tensor m_bias_tensor(bias_name, bias_dims, get_mwnn_type_glow(data_type), bias);
           graph_->set_graph_initializers(m_bias_tensor);
-          metawarenn::Attribute attr_alpha("alpha", std::vector<int>{int(gemm_node->getAlpha())});
+          metawarenn::Attribute attr_alpha("alpha", std::vector<float>{float(gemm_node->getAlpha())});
           node_attributes.emplace_back(attr_alpha);
-          metawarenn::Attribute attr_beta("beta", std::vector<int>{int(gemm_node->getBeta())});
+          metawarenn::Attribute attr_beta("beta", std::vector<float>{float(gemm_node->getBeta())});
           node_attributes.emplace_back(attr_beta);
           metawarenn::Attribute attr_transA("transA", std::vector<int>{int(gemm_node->getTransposeA())});
           node_attributes.emplace_back(attr_transA);
-          metawarenn::Attribute attr_transB("transB", std::vector<int>{int(gemm_node->getBeta())});
+          metawarenn::Attribute attr_transB("transB", std::vector<int>{int(gemm_node->getTransposeB())});
           node_attributes.emplace_back(attr_transB);
           auto output_name = gemm_node->getResult().generateNodeOutputName(true);
           node_outputs.emplace_back(output_name);
@@ -408,21 +480,6 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
           }
 
           auto output_name = batchnorm_node->getResult().generateNodeOutputName(true);
-          node_outputs.emplace_back(output_name);
-          LOG(INFO) << "output_name: " << output_name;
-          break;
-        }
-        case Kinded::Kind::ChannelShuffleNodeKind: //Check for onnx conversion
-        {
-          node_op_type = "ChannelShuffle";
-          auto *channel_shuffle_node = llvm::cast<ChannelShuffleNode>(node);
-          metawarenn::Attribute attr_group("group", std::vector<int>{int(channel_shuffle_node->getGroup())});
-          node_attributes.emplace_back(attr_group);
-          metawarenn::Attribute attr_kernel("kernel", std::vector<int>{int(channel_shuffle_node->getKernel())});
-          node_attributes.emplace_back(attr_kernel);
-          auto input_name = channel_shuffle_node->getInput().generateNodeOutputName(true);
-          node_inputs.emplace_back(input_name);
-          auto output_name = channel_shuffle_node->getResult().generateNodeOutputName(true);
           node_outputs.emplace_back(output_name);
           LOG(INFO) << "output_name: " << output_name;
           break;
@@ -842,7 +899,7 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
         {
           node_op_type = "LeakyRelu";
           auto *lrelu_node = llvm::cast<LeakyReluNode>(node);
-          metawarenn::Attribute attr_alpha("alpha", std::vector<int>{(int)lrelu_node->getAlpha()});
+          metawarenn::Attribute attr_alpha("alpha", std::vector<float>{(float)lrelu_node->getAlpha()});
           node_attributes.emplace_back(attr_alpha);
           auto input_name = lrelu_node->getInput().generateNodeOutputName(true);
           node_inputs.emplace_back(input_name);
@@ -1276,11 +1333,14 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
         default:
           break;
         }
-        metawarenn::Node m_node(node_name, node_op_type, node_attributes, node_inputs, node_outputs);
-        graph_->set_graph_nodes(m_node);
-        auto op_node = m_node.get_node();
-        graph_->graph_nodes[m_node.get_name()] = std::move(op_node);
-        global_output_name = node_outputs.back();
+        // Check to avoid empty node creation for removed nodes
+        if(!onnx_unsupported_nodes.count(node->getKind())) {
+          metawarenn::Node m_node(node_name, node_op_type, node_attributes, node_inputs, node_outputs);
+          graph_->set_graph_nodes(m_node);
+          auto op_node = m_node.get_node();
+          graph_->graph_nodes[m_node.get_name()] = std::move(op_node);
+          global_output_name = node_outputs.back();
+        }
       }
     }
     // Graph input and output handling
@@ -1289,6 +1349,7 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
     auto &last_node = nodes.back();
     auto input_name = std::string(first_node.getNthInput(0).getNode()->getName());
     auto output_name = std::string(last_node.getNthResult(0).getNode()->getName());
+    auto remove_transpose = false;
     for (auto &V : F->getParent()->getPlaceholders()) {
       if (!usedInFunction(V, F)) {
         continue;
@@ -1297,11 +1358,19 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
       auto data_type = V->getType()->getElementType();
       int size = glow_dims.size();
       std::vector<int> dims(size);
-      // Input dims from NCHW to NHWC
+      // Input dims from NHWC to HCHW
+      if(!(glow_dims[2] == glow_dims[3])) {
       dims[1] = int(glow_dims[3]);
       dims[3] = int(glow_dims[1]);
       dims[2] = int(glow_dims[2]);
       dims[0] = int(glow_dims[0]);
+      }
+      else {
+        int i = 0;
+        for(auto dim: glow_dims)
+          dims[i++] = (int(dim));
+        remove_transpose = true; // Input already in NCHW, enable the first transpose removal
+      }
       if (getOutputSave(F, V)) {
         graph_->set_graph_op_names(global_output_name);
         //Fills Graph Output Tensor Details - Name, Dims
@@ -1342,20 +1411,21 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
         }
       }
       //Subgraph from other backends is already in CHW order
-      if(graph_count == 1) {
+      /*if(graph_count == 1) {
         for (auto g_t : graph_->get_graph_ip_tensor()) {
           if(g_t.get_dims().size() == 4) {
             /*std::cout << "\n Name : " << g_t.get_name();
             std::cout << "\t Dims : ";
             for (auto dim : g_t.get_dims())
               std::cout << dim << ",";*/
-            ::metawarenn::optimizer::ConvertLayout cl(graph_, g_t, 0, HWC_TO_CHW, false);
+            /*::metawarenn::optimizer::ConvertLayout cl(graph_, g_t, 0, HWC_TO_CHW, false);
             manager.register_pass(cl);
           }
         }
-      }
+      }*/
     }
     auto m_nodes = graph_->get_graph_nodes();
+    int transpose_removal = 0;
     for (int node_idx = 0; node_idx < graph_->get_graph_nodes().size(); node_idx++) {
       auto g_n = m_nodes[node_idx];
       /*if(g_n.get_op_type() == "Relu") {
@@ -1363,10 +1433,26 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
         //std::cout << "\n MetaWareNNCC : " << fr.get_name();
         manager.register_pass(fr);
       }
-      else*/ if(g_n.get_op_type() == "Transpose") {
-        optimizer::RemoveTranspose rt(graph_, g_n);
-        //std::cout << "\n MetaWareNNCC : " << rt.get_name();
-        manager.register_pass(rt);
+      else*/ if((g_n.get_op_type() == "Transpose")) {
+        if(remove_transpose && (transpose_removal == 0)) {
+          optimizer::RemoveTranspose rt(graph_, g_n);
+          //std::cout << "\n MetaWareNNCC : " << rt.get_name();
+          manager.register_pass(rt);
+          transpose_removal++;
+        }
+        else if(g_n.get_inputs()[0] == graph_->get_graph_ip_names()[0])
+        {
+          optimizer::RemoveTranspose rt(graph_, g_n);
+          //std::cout << "\n MetaWareNNCC : " << rt.get_name();
+          manager.register_pass(rt);
+          transpose_removal++;
+        }
+        else if (g_n.get_name() == ignored_transpose_node)
+        {
+          optimizer::RemoveTranspose rt(graph_, g_n);
+          //std::cout << "\n MetaWareNNCC : " << rt.get_name();
+          manager.register_pass(rt);
+        }
       }
     }
     optimizer::CalculateOffset co(graph_);
