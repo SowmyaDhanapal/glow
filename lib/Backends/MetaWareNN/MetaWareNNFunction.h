@@ -13,6 +13,8 @@
 #include "metawarenn_lib/mwnnconvert/mwnn_protobuf/cpp_wrapper/MWNN.pb.h"
 #include "metawarenn_lib/mwnn_inference_api/mwnn_inference_api.h"
 #include "metawarenn_lib/executable_network/metawarenn_executable_graph.h"
+#include "metawarenn_lib/mwnnconvert/mwnn_to_onnx_proto.h"
+
 #include <fcntl.h>
 
 #define CHW_TO_HWC 0

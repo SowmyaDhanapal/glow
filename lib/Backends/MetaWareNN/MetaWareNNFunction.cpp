@@ -1,6 +1,7 @@
 #include "MetaWareNNFunction.h"
 
 namespace metawarenn {
+
 std::set<Kinded::Kind> onnx_unsupported_nodes = {Kinded::Kind::ChannelShuffleNodeKind};
 
 // Converts the ONNX unsupported nodes in GLOW to modified ops and add it in GLOW function
@@ -164,8 +165,6 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
             node_attributes.emplace_back(attr_pad);
             metawarenn::Attribute attr_stride("strides", std::vector<int>{int(strides[0]), int(strides[1])});
             node_attributes.emplace_back(attr_stride);
-            metawarenn::Attribute attr_act("activation", std::vector<int>{0});
-            node_attributes.emplace_back(attr_act);
             auto output_name = conv_node->getResult().generateNodeOutputName(true);
             node_outputs.emplace_back(output_name);
             LOG(INFO) << "output_name: " << output_name;
@@ -192,17 +191,18 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
           auto input_dims = avgpool_node->getInput().dims();
           if(kernels[0] == input_dims[1] && kernels[1] == input_dims[2]) // Match the layer input's HW to kernel's HW
             node_op_type = "GlobalAveragePool";
-          else
+          else {
             node_op_type = "AveragePool";
-          auto count_include_pad = avgpool_node->getCountIncludePads();
-          metawarenn::Attribute attr_count_include_pad("count_include_pad", std::vector<int>{count_include_pad});
-          node_attributes.emplace_back(attr_count_include_pad);
-          metawarenn::Attribute attr_kernel_shape("kernel_shape", std::vector<int>{int(kernels[0]), int(kernels[1])});
-          node_attributes.emplace_back(attr_kernel_shape);
-          metawarenn::Attribute attr_stride("strides", std::vector<int>{int(strides[0]), int(strides[1])});
-          node_attributes.emplace_back(attr_stride);
-          metawarenn::Attribute attr_pads("pads", std::vector<int>{int(pads[0]), int(pads[1]), int(pads[2]), int(pads[3])});
-          node_attributes.emplace_back(attr_pads);
+            auto count_include_pad = avgpool_node->getCountIncludePads();
+            metawarenn::Attribute attr_count_include_pad("count_include_pad", std::vector<int>{count_include_pad});
+            node_attributes.emplace_back(attr_count_include_pad);
+            metawarenn::Attribute attr_kernel_shape("kernel_shape", std::vector<int>{int(kernels[0]), int(kernels[1])});
+            node_attributes.emplace_back(attr_kernel_shape);
+            metawarenn::Attribute attr_stride("strides", std::vector<int>{int(strides[0]), int(strides[1])});
+            node_attributes.emplace_back(attr_stride);
+            metawarenn::Attribute attr_pads("pads", std::vector<int>{int(pads[0]), int(pads[1]), int(pads[2]), int(pads[3])});
+            node_attributes.emplace_back(attr_pads);
+          }
           auto input_name = avgpool_node->getInput().generateNodeOutputName(true);
           node_inputs.emplace_back(input_name);
           LOG(INFO) << "input_name: " << input_name;
@@ -1393,7 +1393,7 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
           std::cout << "\t Dims : ";
           for (auto dim : g_t.get_dims())
             std::cout << dim << ",";*/
-          optimizer::ConvertLayout cl(graph_, g_t, CHW_TO_HWC, 0, false);
+          optimizer::ConvertLayout cl(graph_, g_t, CHW_TO_HWC, 0, 0, false);
           manager.register_pass(cl);
         }
       }
@@ -1406,7 +1406,7 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
           std::cout << "\t Dims : ";
           for (auto dim : g_t.get_dims())
             std::cout << dim << ",";*/
-          ::metawarenn::optimizer::ConvertLayout cl(graph_, g_t, 0, HWC_TO_CHW, true);
+          ::metawarenn::optimizer::ConvertLayout cl(graph_, g_t, 0, HWC_TO_CHW, 0, true);
           manager.register_pass(cl);
         }
       }
@@ -1418,7 +1418,7 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
             std::cout << "\t Dims : ";
             for (auto dim : g_t.get_dims())
               std::cout << dim << ",";*/
-            /*::metawarenn::optimizer::ConvertLayout cl(graph_, g_t, 0, HWC_TO_CHW, false);
+            /*::metawarenn::optimizer::ConvertLayout cl(graph_, g_t, 0, HWC_TO_CHW, 0, false);
             manager.register_pass(cl);
           }
         }
@@ -1458,6 +1458,8 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
     optimizer::CalculateOffset co(graph_);
     manager.register_pass(co);
     manager.run_passes();
+    write_onnx_proto(graph_);
+
     auto graph_ip_names = graph_->get_graph_ip_names();
     for (auto g_n : graph_->get_graph_nodes()) {
       for (auto n_ip : g_n.get_inputs()) {
@@ -1483,7 +1485,7 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
       }
     }
 
-    exe_graph_ = std::make_shared<metawarenn::ExecutableGraph>(*graph_);
+    //exe_graph_ = std::make_shared<metawarenn::ExecutableGraph>(*graph_);
 
     #if INVOKE_NNAC
       std::cout << "\n ---------------------------Graph----------------------------- \n";
@@ -1662,7 +1664,7 @@ Error MetaWareNNFunction::execute(ExecutionContext *context) {
   }
 
   // **************************************** Calls to invoke the MetaWareNN Inference API ************************************
-  InferenceApi mwapi;
+  /*InferenceApi mwapi;
 
   std::vector<std::string> ip_names = graph_->get_graph_ip_names();
   auto ip_shape = graph_->get_graph_ip_tensor()[0].get_dims();
@@ -1678,7 +1680,7 @@ Error MetaWareNNFunction::execute(ExecutionContext *context) {
 
   mwapi.runGraph();
 
-  mwapi.getOutput(graph_outputs[op_names[0]], op_shape);
+  mwapi.getOutput(graph_outputs[op_names[0]], op_shape);*/
 
   // ******************************************* Call to invoke the local run function *****************************************
 
