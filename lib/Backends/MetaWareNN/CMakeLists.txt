@@ -13,7 +13,6 @@ add_library(MetaWareNN
             metawarenn_lib/op/avg_pool.cc
             metawarenn_lib/op/constant.cc
             metawarenn_lib/op/conv.cc
-            metawarenn_lib/op/depthwise_conv.cc
             metawarenn_lib/op/input_data.cc
             metawarenn_lib/op/node.cc
             metawarenn_lib/op/relu.cc
@@ -35,15 +34,10 @@ add_library(MetaWareNN
             metawarenn_lib/op/shape.cc
             metawarenn_lib/op/mean.cc
             metawarenn_lib/op/split.cc
-            metawarenn_lib/op/strided_slice.cc
             metawarenn_lib/op/pad.cc
             metawarenn_lib/op/exp.cc
             metawarenn_lib/op/max.cc
-            metawarenn_lib/op/maximum.cc
-            metawarenn_lib/op/minimum.cc
             metawarenn_lib/op/sum.cc
-            metawarenn_lib/op/channel_shuffle.cc
-            metawarenn_lib/op/fully_connected.cc
             metawarenn_lib/op/min.cc
             metawarenn_lib/op/cast.cc
             metawarenn_lib/op/sub.cc
