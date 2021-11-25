@@ -157,7 +157,7 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
             auto group = conv_node->getGroup();
             metawarenn::Attribute attr_dilate("dilations", std::vector<int>{int(dilations[0]), int(dilations[1])});
             node_attributes.emplace_back(attr_dilate);
-            metawarenn::Attribute attr_group("group", std::vector<int>{int(group)});
+            metawarenn::Attribute attr_group("group", (int)group);
             node_attributes.emplace_back(attr_group);
             metawarenn::Attribute attr_kernel_shape("kernel_shape", std::vector<int>{(int)filterDims.h, (int)filterDims.w});
             node_attributes.emplace_back(attr_kernel_shape);
@@ -194,7 +194,7 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
           else {
             node_op_type = "AveragePool";
             auto count_include_pad = avgpool_node->getCountIncludePads();
-            metawarenn::Attribute attr_count_include_pad("count_include_pad", std::vector<int>{count_include_pad});
+            metawarenn::Attribute attr_count_include_pad("count_include_pad", (int)count_include_pad);
             node_attributes.emplace_back(attr_count_include_pad);
             metawarenn::Attribute attr_kernel_shape("kernel_shape", std::vector<int>{int(kernels[0]), int(kernels[1])});
             node_attributes.emplace_back(attr_kernel_shape);
@@ -283,13 +283,13 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
         {
           node_op_type = "LRN";
           auto *lrn_node = llvm::cast<LocalResponseNormalizationNode>(node);
-          metawarenn::Attribute attr_alpha("alpha", std::vector<float>{float(lrn_node->getAlpha())});
+          metawarenn::Attribute attr_alpha("alpha", float(lrn_node->getAlpha()));
           node_attributes.emplace_back(attr_alpha);
-          metawarenn::Attribute attr_beta("beta", std::vector<float>{float(lrn_node->getBeta())});
+          metawarenn::Attribute attr_beta("beta", float(lrn_node->getBeta()));
           node_attributes.emplace_back(attr_beta);
-          metawarenn::Attribute attr_size("size", std::vector<int>{int(2 * lrn_node->getHalfWindowSize() + 1)});
+          metawarenn::Attribute attr_size("size", int(2 * lrn_node->getHalfWindowSize() + 1));
           node_attributes.emplace_back(attr_size);
-          metawarenn::Attribute attr_bias("bias", std::vector<float>{float(lrn_node->getK())});
+          metawarenn::Attribute attr_bias("bias", float(lrn_node->getK()));
           node_attributes.emplace_back(attr_bias);
           auto input_name = lrn_node->getInput().generateNodeOutputName(true);
           node_inputs.emplace_back(input_name);
@@ -373,13 +373,13 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
           data_type = type.getElementType();
           metawarenn::Tensor m_bias_tensor(bias_name, bias_dims, get_mwnn_type_glow(data_type), bias);
           graph_->set_graph_initializers(m_bias_tensor);
-          metawarenn::Attribute attr_alpha("alpha", std::vector<float>{float(gemm_node->getAlpha())});
+          metawarenn::Attribute attr_alpha("alpha", float(gemm_node->getAlpha()));
           node_attributes.emplace_back(attr_alpha);
-          metawarenn::Attribute attr_beta("beta", std::vector<float>{float(gemm_node->getBeta())});
+          metawarenn::Attribute attr_beta("beta", float(gemm_node->getBeta()));
           node_attributes.emplace_back(attr_beta);
-          metawarenn::Attribute attr_transA("transA", std::vector<int>{int(gemm_node->getTransposeA())});
+          metawarenn::Attribute attr_transA("transA", int(gemm_node->getTransposeA()));
           node_attributes.emplace_back(attr_transA);
-          metawarenn::Attribute attr_transB("transB", std::vector<int>{int(gemm_node->getTransposeB())});
+          metawarenn::Attribute attr_transB("transB", int(gemm_node->getTransposeB()));
           node_attributes.emplace_back(attr_transB);
           auto output_name = gemm_node->getResult().generateNodeOutputName(true);
           node_outputs.emplace_back(output_name);
@@ -391,7 +391,7 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
           node_op_type = "Concat";
           auto *concat_node = llvm::cast<ConcatNode>(node);
           auto inputs = concat_node->getInputs();
-          metawarenn::Attribute attr_axis("axis", std::vector<int>{1});//int(inputs[0].dims().size())});
+          metawarenn::Attribute attr_axis("axis", (int)1);//int(inputs[0].dims().size())});
           node_attributes.emplace_back(attr_axis);
           for(int i = 0; i < concat_node->getInputs().size(); i++)
           {
@@ -408,9 +408,9 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
         {
           node_op_type = "BatchNormalization";
           auto *batchnorm_node = llvm::cast<BatchNormalizationNode>(node);
-          metawarenn::Attribute attr_epsilon("epsilon", std::vector<float>{batchnorm_node->getEpsilon()});
+          metawarenn::Attribute attr_epsilon("epsilon", batchnorm_node->getEpsilon());
           node_attributes.emplace_back(attr_epsilon);
-          metawarenn::Attribute attr_momentum("momentum", std::vector<float>{batchnorm_node->getMomentum()});
+          metawarenn::Attribute attr_momentum("momentum", batchnorm_node->getMomentum());
           node_attributes.emplace_back(attr_momentum);
           auto input_name = batchnorm_node->getInput().getNode()->getName();
           node_inputs.emplace_back(input_name);
@@ -645,8 +645,8 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
         {
           node_op_type = "ArgMax";
           auto *argmax_node = llvm::cast<ArgMaxNode>(node);
-          metawarenn::Attribute attr_axis("axis", std::vector<int>{int(argmax_node->getAxis())});
-          metawarenn::Attribute attr_keep_dims("keepDims", std::vector<int>{int(argmax_node->getKeepDims())});
+          metawarenn::Attribute attr_axis("axis", int(argmax_node->getAxis()));
+          metawarenn::Attribute attr_keep_dims("keepDims", int(argmax_node->getKeepDims()));
           node_attributes.emplace_back(attr_axis);
           auto input_name = argmax_node->getInput().generateNodeOutputName(true);
           node_inputs.emplace_back(input_name);
@@ -660,9 +660,9 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
         {
           node_op_type = "ArgMin";
           auto *argmin_node = llvm::cast<ArgMinNode>(node);
-          metawarenn::Attribute attr_axis("axis", std::vector<int>{int(argmin_node->getAxis())});
+          metawarenn::Attribute attr_axis("axis", int(argmin_node->getAxis()));
           node_attributes.emplace_back(attr_axis);
-          metawarenn::Attribute attr_keep_dims("keepDims", std::vector<int>{int(argmin_node->getKeepDims())});
+          metawarenn::Attribute attr_keep_dims("keepDims", int(argmin_node->getKeepDims()));
           node_attributes.emplace_back(attr_keep_dims);
           auto input_name = argmin_node->getInput().generateNodeOutputName(true);
           node_inputs.emplace_back(input_name);
@@ -711,7 +711,7 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
           node_op_type = "Gather";
           auto *gather_node = llvm::cast<GatherNode>(node);
           auto batch_dims = gather_node->getBatchDims();
-          metawarenn::Attribute attr_axis("axis", std::vector<int>{(int)batch_dims});
+          metawarenn::Attribute attr_axis("axis", (int)batch_dims);
           node_attributes.emplace_back(attr_axis);
           NodeValue indices = gather_node->getIndices();
           std::vector<int> ind_dims;
@@ -849,7 +849,7 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
           node_inputs.emplace_back(pads_tensor.get_name());
           metawarenn::Tensor value_tensor(node_name + "_value", std::vector<int>{1}, ElementType::element_type::float_, std::vector<float>{(float)pad_node->getValue()});
           node_inputs.emplace_back(value_tensor.get_name());
-          metawarenn::Attribute attr_mode("mode", std::vector<int>{int(pad_node->getMode())});
+          metawarenn::Attribute attr_mode("mode", int(pad_node->getMode()));
           node_attributes.emplace_back(attr_mode);
           auto input_name = pad_node->getInput().generateNodeOutputName(true);
           node_inputs.emplace_back(input_name);
@@ -899,7 +899,7 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
         {
           node_op_type = "LeakyRelu";
           auto *lrelu_node = llvm::cast<LeakyReluNode>(node);
-          metawarenn::Attribute attr_alpha("alpha", std::vector<float>{(float)lrelu_node->getAlpha()});
+          metawarenn::Attribute attr_alpha("alpha", (float)lrelu_node->getAlpha());
           node_attributes.emplace_back(attr_alpha);
           auto input_name = lrelu_node->getInput().generateNodeOutputName(true);
           node_inputs.emplace_back(input_name);
@@ -940,7 +940,7 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
         {
           node_op_type = "NonMaxSuppression";
           auto *nms_node = llvm::cast<NonMaxSuppressionNode>(node);
-          metawarenn::Attribute attr_cpb("center_point_box", std::vector<int>{(int)nms_node->getCenterPointBox()});
+          metawarenn::Attribute attr_cpb("center_point_box", (int)nms_node->getCenterPointBox());
           node_attributes.emplace_back(attr_cpb);
           NodeValue boxes = nms_node->getBoxes();
           NodeValue scores = nms_node->getScores();
@@ -1064,7 +1064,7 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
         {
           node_op_type = "ReduceSum";
           auto *reduce_add_node = llvm::cast<BatchedReduceAddNode>(node);
-          metawarenn::Attribute attr_axes("axes", std::vector<int>{(int)reduce_add_node->getAxis()});
+          metawarenn::Attribute attr_axes("axes", (int)reduce_add_node->getAxis());
           node_attributes.emplace_back(attr_axes);
           auto input_name = reduce_add_node->getNthInput(0).generateNodeOutputName(true);
           node_inputs.emplace_back(input_name);
@@ -1087,11 +1087,11 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
           graph_->set_graph_initializers(scales_tensor);
           graph_->initializer_names.insert(scales_tensor.get_name());
           node_inputs.emplace_back(scales_tensor.get_name());
-          metawarenn::Attribute attr_trans_mode("coordinate_transformation_mode", std::vector<std::string>{"asymmetric"});
+          metawarenn::Attribute attr_trans_mode("coordinate_transformation_mode", "asymmetric");
           node_attributes.emplace_back(attr_trans_mode);
-          metawarenn::Attribute attr_mode("mode", std::vector<std::string>{"nearest"});
+          metawarenn::Attribute attr_mode("mode", "nearest");
           node_attributes.emplace_back(attr_mode);
-          metawarenn::Attribute attr_near_mode("nearest_mode", std::vector<std::string>{"floor"});
+          metawarenn::Attribute attr_near_mode("nearest_mode", "floor");
           node_attributes.emplace_back(attr_near_mode);
           auto input_name = resize_near_node->getInput().generateNodeOutputName(true);
           node_inputs.emplace_back(input_name);
@@ -1114,9 +1114,9 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
           graph_->set_graph_initializers(scales_tensor);
           graph_->initializer_names.insert(scales_tensor.get_name());
           node_inputs.emplace_back(scales_tensor.get_name());
-          metawarenn::Attribute attr_trans_mode("coordinate_transformation_mode", std::vector<std::string>{"asymmetric"});
+          metawarenn::Attribute attr_trans_mode("coordinate_transformation_mode", "asymmetric");
           node_attributes.emplace_back(attr_trans_mode);
-          metawarenn::Attribute attr_mode("mode", std::vector<std::string>{"linear"});
+          metawarenn::Attribute attr_mode("mode", "linear");
           node_attributes.emplace_back(attr_mode);
           auto input_name = resize_bilinear_node->getInput().generateNodeOutputName(true);
           node_inputs.emplace_back(input_name);
@@ -1160,23 +1160,23 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
           }
           switch(roi_align_node->getMode()) {
             case PoolingMode::AVG: {
-              metawarenn::Attribute attr_mode("mode", std::vector<std::string>{"avg"});
+              metawarenn::Attribute attr_mode("mode", "avg");
               node_attributes.emplace_back(attr_mode);
               break;
             }
             case PoolingMode::MAX: {
-              metawarenn::Attribute attr_mode("mode", std::vector<std::string>{"max"});
+              metawarenn::Attribute attr_mode("mode", "max");
               node_attributes.emplace_back(attr_mode);
               break;
             }
           }
-          metawarenn::Attribute attr_out_h("output_height", std::vector<int>{(int)roi_align_node->getOutputHeight()});
+          metawarenn::Attribute attr_out_h("output_height", (int)roi_align_node->getOutputHeight());
           node_attributes.emplace_back(attr_out_h);
-          metawarenn::Attribute attr_out_w("output_width", std::vector<int>{(int)roi_align_node->getOutputWidth()});
+          metawarenn::Attribute attr_out_w("output_width", (int)roi_align_node->getOutputWidth());
           node_attributes.emplace_back(attr_out_w);
-          metawarenn::Attribute attr_s_ratio("sampling_ratio", std::vector<int>{(int)roi_align_node->getSamplingRatio()});
+          metawarenn::Attribute attr_s_ratio("sampling_ratio", (int)roi_align_node->getSamplingRatio());
           node_attributes.emplace_back(attr_s_ratio);
-          metawarenn::Attribute attr_s_scale("spatial_scale", std::vector<float>{(float)roi_align_node->getSpatialScale()});
+          metawarenn::Attribute attr_s_scale("spatial_scale", (float)roi_align_node->getSpatialScale());
           node_attributes.emplace_back(attr_s_scale);
           auto input_name = roi_align_node->getNthInput(0).generateNodeOutputName(true);
           node_inputs.emplace_back(input_name);
@@ -1214,7 +1214,7 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
         {
           node_op_type = "SpaceToDepth";
           auto *space_depth_node = llvm::cast<SpaceToDepthNode>(node);
-          metawarenn::Attribute attr_b_size("blocksize", std::vector<int>{(int)space_depth_node->getBlockSize()});
+          metawarenn::Attribute attr_b_size("blocksize", (int)space_depth_node->getBlockSize());
           node_attributes.emplace_back(attr_b_size);
           auto input_name = space_depth_node->getInput().generateNodeOutputName(true);
           node_inputs.emplace_back(input_name);
@@ -1302,7 +1302,7 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
           auto group = conv_trans_node->getGroup();
           metawarenn::Attribute attr_dilate("dilations", std::vector<int>{int(dilations[0]), int(dilations[1])});
           node_attributes.emplace_back(attr_dilate);
-          metawarenn::Attribute attr_group("group", std::vector<int>{int(group)});
+          metawarenn::Attribute attr_group("group", int(group));
           node_attributes.emplace_back(attr_group);
           metawarenn::Attribute attr_kernel_shape("kernel_shape", std::vector<int>{(int)kernels[0], (int)kernels[1]});
           node_attributes.emplace_back(attr_kernel_shape);
