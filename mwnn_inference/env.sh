@@ -9,5 +9,5 @@ export EXEC_DUMPS_PATH=$FRAMEWORK_PATH"/EXEC_DUMPS/"
 ########### NNAC - EV binary generation flow ##############
 #set the path to ARC directory
 export ARC_PATH=/path/to/ARC/
-export EV_CNNMODELS_HOME=/home/mcw/new_synopsys/arc_MWDT_EV/ARC/cnn_tools/cnn_models/
+export EV_CNNMODELS_HOME=/path/to/cnn_tools/cnn_models/
 export NNAC_DUMPS_PATH=$FRAMEWORK_PATH"/NNAC_DUMPS/"
