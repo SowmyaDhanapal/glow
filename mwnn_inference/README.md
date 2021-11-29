@@ -128,7 +128,7 @@
 ### To Run Inference using MetaWareNN Backend
 * Download the MobileNet-V2 model using the zip file from egnyte link - https://multicorewareinc.egnyte.com/dl/2JAUNXlGg0 and unzip the same
 * `cd /path/to/glow/build_Release/bin`
-* `source /path/to/glow/lib/Backends/MetaWareNN/env.sh`
+* `source /path/to/glow/mwnn_inference/env.sh`
 * `./image-classifier ../../tests/images/imagenet/cat_285.png -image-mode=0to1 -m=/path/to/mobilenetv2-7.onnx -model-input-name=data -cpu-memory=100000 -backend=MetaWareNN`
 * `./image-classifier ../../tests/images/imagenet/dog_207.png -image-mode=0to1 -m=/path/to/mobilenetv2-7.onnx -model-input-name=data -cpu-memory=100000 -load-device-configs="../tests/runtime_test/heterogeneousConfigs.yaml"`
 
@@ -139,7 +139,7 @@
 (This script will create a folder `onnx_models` inside glow/ directory and download models into it.)
     *   `sh download_ONNX_models.sh`
 * Run the ONNX models from model zoo in metawarenn backend with below command
-    *   `sh run_ONNX_models.sh`
+    *   `python inference_regression.py`
 
 ## To generate ONNX Proto and verify it with original ONNX models
 * `cd /path/to/glow/mwnn_inference`
@@ -148,7 +148,7 @@
 (This script will create a folder `onnx_models` inside glow/ directory and download models into it.)
     *   `sh download_ONNX_models.sh`
 * Run the ONNX models from model zoo in metawarenn backend with below command
-    *   `sh run_ONNX_models.sh`
+    *   `python validate_models.py`
 NOTE: Install the following pip packages for verification of ONNX models
 * `pip install onnx` current version - 1.10.2
 * `pip install onnxruntime` current version - 1.9.0
