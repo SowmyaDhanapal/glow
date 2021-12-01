@@ -72,7 +72,9 @@ private:
   PlaceholderList outputs_;
 
   std::shared_ptr<metawarenn::Graph> graph_;
+  #if EXECUTABLE_GRAPH_SERIALIZATION
   std::shared_ptr<metawarenn::ExecutableGraph> exe_graph_;
+  #endif
 };
 
 } // namespace metawarenn

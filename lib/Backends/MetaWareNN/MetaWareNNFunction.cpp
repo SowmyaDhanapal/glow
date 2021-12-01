@@ -1377,8 +1377,10 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
         if(!onnx_unsupported_nodes.count(node->getKind())) {
           metawarenn::Node m_node(node_name, node_op_type, node_attributes, node_inputs, node_outputs);
           graph_->set_graph_nodes(m_node);
+          #if EXECUTABLE_GRAPH_SERIALIZATION
           auto op_node = m_node.get_node();
           graph_->graph_nodes[m_node.get_name()] = std::move(op_node);
+          #endif
           if(global_input_name == "")
             global_input_name = node_inputs.front();
           global_output_name = node_outputs.back();
@@ -1529,8 +1531,9 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
           std::cout << "\n      Consumer Node - " << node_name;
       }
     }
-
-    //exe_graph_ = std::make_shared<metawarenn::ExecutableGraph>(*graph_);
+    #if EXECUTABLE_GRAPH_SERIALIZATION
+    exe_graph_ = std::make_shared<metawarenn::ExecutableGraph>(*graph_);
+    #endif
 
     #if INVOKE_NNAC
       std::cout << "\n ---------------------------Graph----------------------------- \n";
@@ -1709,7 +1712,8 @@ Error MetaWareNNFunction::execute(ExecutionContext *context) {
   }
 
   // **************************************** Calls to invoke the MetaWareNN Inference API ************************************
-  /*InferenceApi mwapi;
+  #if EXECUTABLE_GRAPH_SERIALIZATION
+  InferenceApi mwapi;
 
   std::vector<std::string> ip_names = graph_->get_graph_ip_names();
   auto ip_shape = graph_->get_graph_ip_tensor()[0].get_dims();
@@ -1725,7 +1729,8 @@ Error MetaWareNNFunction::execute(ExecutionContext *context) {
 
   mwapi.runGraph();
 
-  mwapi.getOutput(graph_outputs[op_names[0]], op_shape);*/
+  mwapi.getOutput(graph_outputs[op_names[0]], op_shape);
+  #endif
 
   // ******************************************* Call to invoke the local run function *****************************************
 
