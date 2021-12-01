@@ -11,9 +11,7 @@ add_library(MetaWareNN
             metawarenn_lib/kernels/helpers/mli_helpers.cc
             metawarenn_lib/op/add.cc
             metawarenn_lib/op/avg_pool.cc
-            metawarenn_lib/op/constant.cc
             metawarenn_lib/op/conv.cc
-            metawarenn_lib/op/input_data.cc
             metawarenn_lib/op/node.cc
             metawarenn_lib/op/relu.cc
             metawarenn_lib/op/reshape.cc

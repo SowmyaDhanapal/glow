@@ -1377,10 +1377,6 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
         if(!onnx_unsupported_nodes.count(node->getKind())) {
           metawarenn::Node m_node(node_name, node_op_type, node_attributes, node_inputs, node_outputs);
           graph_->set_graph_nodes(m_node);
-          #if EXECUTABLE_GRAPH_SERIALIZATION
-          auto op_node = m_node.get_node();
-          graph_->graph_nodes[m_node.get_name()] = std::move(op_node);
-          #endif
           if(global_input_name == "")
             global_input_name = node_inputs.front();
           global_output_name = node_outputs.back();
