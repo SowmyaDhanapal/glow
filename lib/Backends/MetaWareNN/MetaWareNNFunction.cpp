@@ -1501,7 +1501,9 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
     optimizer::CalculateOffset co(graph_);
     manager.register_pass(co);
     manager.run_passes();
+    #if !EXECUTABLE_GRAPH_SERIALIZATION
     write_onnx_proto(graph_);
+    #endif
 
     auto graph_ip_names = graph_->get_graph_ip_names();
     for (auto g_n : graph_->get_graph_nodes()) {
