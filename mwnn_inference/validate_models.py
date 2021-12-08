@@ -29,6 +29,8 @@ for line in f:
     exit(1)
   if model_name == "mnist-7.onnx":
     image_path = glow_path + "/tests/images/mnist/0_1009.png"
+  elif model_name == "tinyyolov2-7.onnx" or model_name == "yolov2-coco-9.onnx":
+    image_path = glow_path + "mwnn_inference/image/yolov2_416.png"
   else:
     image_path = glow_path + "/tests/images/imagenet/cat_285.png"
 
@@ -45,6 +47,8 @@ for line in f:
   elif(model_name == "efficientnet-lite4-11.onnx"):
     subprocess.run([glow_path+ "/build_Release/bin/image-classifier", image_path, "-m", model_path, "-model-input-name", input_node.name, "-image-layout", "NHWC", "-cpu-memory", "100000", "-backend=MetaWareNN"])
 
+  elif(model_name == "tinyyolov2-7.onnx" or model_name == "yolov2-coco-9.onnx"):
+    subprocess.run([glow_path+ "/build_Release/bin/object-detector", image_path, "-m", model_path, "-model-input-name", input_node.name, "-cpu-memory", "100000", "-backend=MetaWareNN", "-onnx-define-symbol=None,1"])
   else:
     subprocess.run([glow_path+ "/build_Release/bin/image-classifier", image_path, "-m", model_path, "-model-input-name", input_node.name, "-cpu-memory", "100000", "-backend=MetaWareNN"])
 
@@ -68,7 +72,8 @@ for line in f:
       else:
           print('not valid input datatype!')
           exit()
-      input_dict[input.name] = data  
+      input_dict[input.name] = data
+  print(input_dict[input.name].shape)
   input_name = session.get_inputs()[0].name
   output_name = []
   for out in session.get_outputs():

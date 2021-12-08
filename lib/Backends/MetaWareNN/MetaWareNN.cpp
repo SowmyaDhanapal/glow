@@ -43,6 +43,8 @@ bool MetaWareNNBackend::isOpSupported(const NodeInfo &NI) const
         case Kinded::Kind::SoftMaxNodeKind:
         case Kinded::Kind::SliceNodeKind:
         case Kinded::Kind::MatMulNodeKind:
+        case Kinded::Kind::LeakyReluNodeKind:
+        case Kinded::Kind::MulNodeKind:
             return true;
         default:
             return false;

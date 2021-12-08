@@ -27,3 +27,5 @@ efficientnet-lite4-11.onnx
 rcnn-ilsvrc13-7.onnx
 zfnet512-7.onnx
 shufflenet-v2-10.onnx
+tinyyolov2-7.onnx
+yolov2-coco-9.onnx

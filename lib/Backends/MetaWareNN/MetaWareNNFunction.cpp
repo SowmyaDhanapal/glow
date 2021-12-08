@@ -98,6 +98,8 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
     std::string global_input_name;
     std::string global_output_name = "";
     std::set<std::string> ignored_transpose_nodes;
+    int transpose_cnt = 0;
+    std::set<std::string> node_inputs_map;
     int node_index = 0;
     for (auto *node : node_list) {
         std::cout << "\nnode_index: " << node_index;
@@ -242,19 +244,24 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
           LOG(INFO) << "input_name 2: " << input2;
           node_inputs.emplace_back(input1);
           node_inputs.emplace_back(input2);
-          auto add_nodevalue = add_node->getRHS();
-          std::vector<int> const_dims(add_nodevalue.dims().size());
-          if (Constant *c = llvm::dyn_cast<Constant>(add_nodevalue.getNode())) {
-            int i = 0;
-            for(auto dim: add_nodevalue.dims()) {
-              const_dims[i++] = dim;
+          auto add_nodevalue1 = add_node->getLHS();
+          auto add_nodevalue2 = add_node->getRHS();
+          std::vector<NodeValue> add_operands = {add_nodevalue1, add_nodevalue2};
+          for(auto operand: add_operands) {
+            auto operand_name = operand.getNode()->getName();
+            if (Constant *c = llvm::dyn_cast<Constant>(operand.getNode())) {
+              std::vector<int> const_dims(operand.dims().size());
+              int i = 0;
+              for(auto dim: operand.dims()) {
+                const_dims[i++] = (int)dim;
+              }
+              auto handle = c->getHandle<float>();
+              auto begin = &handle.raw(0);
+              std::vector<float> data(begin, begin + handle.actualSize());
+              metawarenn::Tensor tensor(operand_name, const_dims, ElementType::element_type::float_, data);
+              graph_->set_graph_initializers(tensor);
+              graph_->initializer_names.insert(tensor.get_name());
             }
-            auto handle = c->getHandle<float>();
-            auto begin = &handle.raw(0);
-            std::vector<float> data(begin, begin + handle.actualSize());
-            metawarenn::Tensor indices_tensor(input2, const_dims, ElementType::element_type::float_, data);
-            graph_->set_graph_initializers(indices_tensor);
-            graph_->initializer_names.insert(indices_tensor.get_name());
           }
           auto output_name = add_node->getResult().generateNodeOutputName(true);
           node_outputs.emplace_back(output_name);
@@ -274,10 +281,10 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
           node_attributes.emplace_back(attr_pads);
           auto input_name = transpose_node->getInput().generateNodeOutputName(true);
           node_inputs.emplace_back(input_name);
-          LOG(INFO) << "input_name: " << input_name;
+          std::cout << "\ninput_name: " << input_name;
           auto output_name = transpose_node->getResult().generateNodeOutputName(true);
           node_outputs.emplace_back(output_name);
-          LOG(INFO) << "output_name: " << output_name;
+          std::cout << "\noutput_name: " << output_name;
           auto input = transpose_node->getInput().getNode();
           /* Checks if transpose layer lies between reshape nodes in Reshape -> Transpose -> Reshape order. If not,
             ignore the Transpose node to maintain the NCHW order*/
@@ -285,6 +292,7 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
             ignored_transpose_nodes.insert(node_name);
             std::cout << "\nignored_transpose_node: " << node_name;
           }
+          transpose_cnt++;
           break;
         }
         case Kinded::Kind::ReshapeNodeKind:
@@ -771,6 +779,25 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
           LOG(INFO) << "input_name 2: " << input2;
           node_inputs.emplace_back(input1);
           node_inputs.emplace_back(input2);
+          auto mul_nodevalue1 = mul_node->getLHS();
+          auto mul_nodevalue2 = mul_node->getRHS();
+          std::vector<NodeValue> mul_operands = {mul_nodevalue1, mul_nodevalue2};
+          for(auto operand: mul_operands) {
+            auto operand_name = operand.getNode()->getName();
+            if (Constant *c = llvm::dyn_cast<Constant>(operand.getNode())) {
+              std::vector<int> const_dims(operand.dims().size());
+              int i = 0;
+              for(auto dim: operand.dims()) {
+                const_dims[i++] = (int)dim;
+              }
+              auto handle = c->getHandle<float>();
+              auto begin = &handle.raw(0);
+              std::vector<float> data(begin, begin + handle.actualSize());
+              metawarenn::Tensor tensor(operand_name, const_dims, ElementType::element_type::float_, data);
+              graph_->set_graph_initializers(tensor);
+              graph_->initializer_names.insert(tensor.get_name());
+            }
+          }
           auto output_name = mul_node->getResult().generateNodeOutputName(true);
           node_outputs.emplace_back(output_name);
           LOG(INFO) << "output_name: " << output_name;
@@ -1377,6 +1404,11 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
         if(!onnx_unsupported_nodes.count(node->getKind())) {
           metawarenn::Node m_node(node_name, node_op_type, node_attributes, node_inputs, node_outputs);
           graph_->set_graph_nodes(m_node);
+          // keeps track of CHW format inputs & initializer before the first transpose node
+          if(transpose_cnt == 0) {
+            for(auto inp : node_inputs)
+              node_inputs_map.insert(inp);
+          }
           if(global_input_name == "")
             global_input_name = node_inputs.front();
           global_output_name = node_outputs.back();
@@ -1396,18 +1428,19 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
       auto data_type = V->getType()->getElementType();
       int size = glow_dims.size();
       std::vector<int> dims(size);
+      int i = 0;
+      for(auto dim: glow_dims)
+        dims[i++] = (int(dim));
       // Input dims from NHWC to HCHW
-      if(!(glow_dims[2] == glow_dims[3])) {
-      dims[1] = int(glow_dims[3]);
-      dims[3] = int(glow_dims[1]);
-      dims[2] = int(glow_dims[2]);
-      dims[0] = int(glow_dims[0]);
-      }
-      else {
-        int i = 0;
-        for(auto dim: glow_dims)
-          dims[i++] = (int(dim));
-        remove_transpose = true; // Input already in NCHW, enable the first transpose removal
+      if(size == 4) {
+        if(glow_dims[2] == glow_dims[3])
+          remove_transpose = true; // Input already in NCHW, enable the first transpose removal
+        else {
+          dims[1] = int(glow_dims[3]);
+          dims[3] = int(glow_dims[1]);
+          dims[2] = int(glow_dims[2]);
+          dims[0] = int(glow_dims[0]);
+        }
       }
       if (getOutputSave(F, V)) {
         graph_->set_graph_op_names(global_output_name);
@@ -1436,10 +1469,14 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
         }
       }
     }
+    std::cout << "\nremove_transpose : " << remove_transpose;
     if(HWC_TO_CHW)
     {
       for (auto g_t : graph_->get_graph_initializers()) {
+        auto dims = g_t.get_dims();
         if(g_t.get_dims().size() == 4) {
+          if(remove_transpose && node_inputs_map.count(g_t.get_name()))
+            continue;
           /*std::cout << "\n Name : " << g_t.get_name();
           std::cout << "\t Dims : ";
           for (auto dim : g_t.get_dims())
@@ -1498,8 +1535,8 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
           manager.register_pass(rt);
         }
     }
-    optimizer::CalculateOffset co(graph_);
-    manager.register_pass(co);
+    /*optimizer::CalculateOffset co(graph_);
+    manager.register_pass(co);*/
     manager.run_passes();
     #if !EXECUTABLE_GRAPH_SERIALIZATION
     write_onnx_proto(graph_);
