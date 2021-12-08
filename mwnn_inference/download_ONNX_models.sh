@@ -29,3 +29,5 @@ wget https://github.com/onnx/models/raw/master/vision/classification/vgg/model/v
 wget https://github.com/onnx/models/raw/master/vision/classification/zfnet-512/model/zfnet512-7.onnx -P $download_dir
 wget https://github.com/onnx/models/raw/master/vision/classification/mobilenet/model/mobilenetv2-7.onnx -P $download_dir
 wget https://github.com/onnx/models/raw/master/vision/classification/shufflenet/model/shufflenet-v2-10.onnx -P $download_dir
+wget https://github.com/onnx/models/raw/master/vision/object_detection_segmentation/tiny-yolov2/model/tinyyolov2-7.onnx -P $download_dir
+wget https://github.com/onnx/models/raw/master/vision/object_detection_segmentation/yolov2-coco/model/yolov2-coco-9.onnx -P $download_dir
