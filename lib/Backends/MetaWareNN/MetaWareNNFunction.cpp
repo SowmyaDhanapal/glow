@@ -79,6 +79,35 @@ void convert_glow_to_onnx(Function *F)
   }
 }
 
+
+void MetaWareNNFunction::read_tensor(glow::Constant *c, std::string tensor_name, ElemKind elem_kind) {
+  std::vector<int> const_dims(c->dims().size());
+  std::cout << "\n initializer - " << tensor_name << ": ";
+  if(c->dims().size() == 4){
+    ShapeNHWC filterDims(c->dims());
+    const_dims[0] = filterDims.n;
+    const_dims[1] = filterDims.h;
+    const_dims[2] = filterDims.w;
+    const_dims[3] = filterDims.c;
+  }
+  else {
+    int i = 0;
+    for(auto dim: c->dims()) {
+      const_dims[i++] = (int)dim;
+    }
+  }
+  for(auto dim: const_dims)
+    std::cout << dim << ", ";
+
+  auto size = std::accumulate(begin(const_dims), end(const_dims), 1, std::multiplies<double>());
+  glow::Handle<float> handle = c->getHandle<float>();
+  auto begin = &handle.raw(0);
+  std::vector<float> data(begin, begin + handle.actualSize());
+  metawarenn::Tensor tensor(tensor_name, const_dims, get_mwnn_type_glow(elem_kind), data);
+  graph_->set_graph_initializers(tensor);
+  graph_->initializer_names.insert(tensor.get_name());
+}
+
 MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function *F)
     : CompiledFunction(std::move(bundle)) {
     findIOPlaceholders(F);
@@ -116,93 +145,55 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
         non_op_types = {"Constant", "Placeholder", "Save"};
         if((std::count(non_op_types.begin(), non_op_types.end(), kind)) < 1)
         {
+        for(int i = 0; i < node->getNumInputs(); i++) {
+          auto input = node->getNthInput(i);
+          auto name = input.getNode()->getName();
+          node_inputs.emplace_back(name);
+          if (Constant *c = llvm::dyn_cast<Constant>(input.getNode())) {
+            std::vector<int> const_dims(c->dims().size());
+            int i = 0;
+            for(auto dim: c->dims())
+              const_dims[i++] = dim;
+            auto handle = c->getHandle<float>();
+            auto begin = &handle.raw(0);
+            std::vector<float> data(begin, begin + handle.actualSize());
+            metawarenn::Tensor const_tensor(name, const_dims, ElementType::element_type::float_, data);
+            graph_->set_graph_initializers(const_tensor);
+            graph_->initializer_names.insert(const_tensor.get_name());
+          }
+          std::cout << "\n input name: " << (std::string)name;
+        }
+        for(int i = 0; i < node->getNumResults(); i++) {
+          auto output = node->getNthResult(i);
+          node_outputs.emplace_back(output.getNode()->getName());
+          std::cout << "\n output name: " << (std::string)output.getNode()->getName();
+        }
         switch (node->getKind())
         {
           case Kinded::Kind::ConvolutionNodeKind:
           {
             node_op_type = "Conv";
             auto *conv_node = llvm::cast<ConvolutionNode>(node);
-            auto input_node = conv_node->getInput();
-            auto input_name = input_node.generateNodeOutputName(true);
-            node_inputs.emplace_back(input_name);
-            LOG(INFO) << "input_name: " << input_name;
-            auto filter_node_value = conv_node->getFilter();
-            auto filter_name = filter_node_value.generateNodeOutputName(true);
-            LOG(INFO) << "filter_name: " << filter_name;
-            node_inputs.emplace_back(filter_name);
-            graph_->initializer_names.insert(filter_name);
-            auto *filter_constant = llvm::dyn_cast<glow::Constant>(filter_node_value.getNode());
-            glow::Tensor filter_tensor = filter_constant->getPayload().clone();
-            auto type = filter_tensor.getType();
-            glow::ElemKind data_type = type.getElementType();
-            ShapeNHWC filterDims(filter_node_value.dims());
-            size_t wt_size = filterDims.n * filterDims.h * filterDims.w * filterDims.c;
-            std::vector<float> weights(wt_size);
-            std::vector<int> weight_dims(4);
-            weight_dims[0] = filterDims.n;
-            weight_dims[1] = filterDims.h;
-            weight_dims[2] = filterDims.w;
-            weight_dims[3] = filterDims.c;
-            auto handle = filter_tensor.getHandle<float>();
-            int i = 0;
-            for (auto elem : handle) {
-              weights[i++] = elem;
-            }
-            metawarenn::Tensor weight_tensor(filter_name, weight_dims, get_mwnn_type_glow(data_type), weights);
-            graph_->set_graph_initializers(weight_tensor);
-            auto bias_node_value = conv_node->getBias();
-            auto bias_name = bias_node_value.generateNodeOutputName(true);
-            // Check to avoid redundant constants in initializers
-            if(!graph_->initializer_names.count(bias_name))
-            {
-              LOG(INFO) << "bias_name: " << bias_name;
-              auto *bias_constant = llvm::dyn_cast<glow::Constant>(bias_node_value.getNode());
-              glow::Tensor bias_tensor = bias_constant->getPayload().clone();
-              auto handle1 = bias_tensor.getHandle<float>();
-              auto base1 = handle1.getElementPtr({static_cast<unsigned long>(0)});
-              std::vector<float> bias(filterDims.n);
-              std::vector<int> bias_dims(1);
-              bias_dims[0] = filterDims.n;
-              i = 0;
-              for (auto elem : handle1) {
-                bias[i++] = elem;
-              }
-              node_inputs.emplace_back(bias_name);
-              graph_->initializer_names.insert(bias_name);
-              type = bias_tensor.getType();
-              data_type = type.getElementType();
-              metawarenn::Tensor m_bias_tensor(bias_name, bias_dims, get_mwnn_type_glow(data_type), bias);
-              graph_->set_graph_initializers(m_bias_tensor);
-            }
             auto dilations = conv_node->getDilation();
             auto strides = conv_node->getStrides();
             auto pads = conv_node->getPads();
             auto group = conv_node->getGroup();
+            auto kernel_shape = conv_node->getKernels();
             metawarenn::Attribute attr_dilate("dilations", std::vector<int>{int(dilations[0]), int(dilations[1])});
             node_attributes.emplace_back(attr_dilate);
             metawarenn::Attribute attr_group("group", (int)group);
             node_attributes.emplace_back(attr_group);
-            metawarenn::Attribute attr_kernel_shape("kernel_shape", std::vector<int>{(int)filterDims.h, (int)filterDims.w});
+            metawarenn::Attribute attr_kernel_shape("kernel_shape", std::vector<int>{(int)kernel_shape[0], (int)kernel_shape[1]});
             node_attributes.emplace_back(attr_kernel_shape);
             metawarenn::Attribute attr_pad("pads", std::vector<int>{int(pads[0]), int(pads[1]), int(pads[2]), int(pads[3])});
             node_attributes.emplace_back(attr_pad);
             metawarenn::Attribute attr_stride("strides", std::vector<int>{int(strides[0]), int(strides[1])});
             node_attributes.emplace_back(attr_stride);
-            auto output_name = conv_node->getResult().generateNodeOutputName(true);
-            node_outputs.emplace_back(output_name);
-            LOG(INFO) << "output_name: " << output_name;
             break;
           }
           case Kinded::Kind::ReluNodeKind:
           {
             node_op_type = "Relu";
-            auto *relu_node = llvm::cast<ReluNode>(node);
-            auto input_name = relu_node->getInput().generateNodeOutputName(true);
-            node_inputs.emplace_back(input_name);
-            LOG(INFO) << "input_name: " << input_name;
-            auto output_name = relu_node->getResult().generateNodeOutputName(true);
-            node_outputs.emplace_back(output_name);
-            LOG(INFO) << "output_name: " << output_name;
             break;
           }
         case Kinded::Kind::AvgPoolNodeKind:
@@ -226,46 +217,11 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
             metawarenn::Attribute attr_pads("pads", std::vector<int>{int(pads[0]), int(pads[1]), int(pads[2]), int(pads[3])});
             node_attributes.emplace_back(attr_pads);
           }
-          auto input_name = avgpool_node->getInput().generateNodeOutputName(true);
-          node_inputs.emplace_back(input_name);
-          LOG(INFO) << "input_name: " << input_name;
-          auto output_name = avgpool_node->getResult().generateNodeOutputName(true);
-          node_outputs.emplace_back(output_name);
-          LOG(INFO) << "output_name: " << output_name;
           break;
         }
         case Kinded::Kind::AddNodeKind:
         {
           node_op_type = "Add";
-          auto *add_node = llvm::cast<AddNode>(node);
-          auto input1 = add_node->getLHS().generateNodeOutputName(true);
-          LOG(INFO) << "input_name 1: " << input1;
-          auto input2 = add_node->getRHS().generateNodeOutputName(true);
-          LOG(INFO) << "input_name 2: " << input2;
-          node_inputs.emplace_back(input1);
-          node_inputs.emplace_back(input2);
-          auto add_nodevalue1 = add_node->getLHS();
-          auto add_nodevalue2 = add_node->getRHS();
-          std::vector<NodeValue> add_operands = {add_nodevalue1, add_nodevalue2};
-          for(auto operand: add_operands) {
-            auto operand_name = operand.getNode()->getName();
-            if (Constant *c = llvm::dyn_cast<Constant>(operand.getNode())) {
-              std::vector<int> const_dims(operand.dims().size());
-              int i = 0;
-              for(auto dim: operand.dims()) {
-                const_dims[i++] = (int)dim;
-              }
-              auto handle = c->getHandle<float>();
-              auto begin = &handle.raw(0);
-              std::vector<float> data(begin, begin + handle.actualSize());
-              metawarenn::Tensor tensor(operand_name, const_dims, ElementType::element_type::float_, data);
-              graph_->set_graph_initializers(tensor);
-              graph_->initializer_names.insert(tensor.get_name());
-            }
-          }
-          auto output_name = add_node->getResult().generateNodeOutputName(true);
-          node_outputs.emplace_back(output_name);
-          LOG(INFO) << "output_name: " << output_name;
           break;
         }
         case Kinded::Kind::TransposeNodeKind:
@@ -279,12 +235,6 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
             perm[i++] = (int)s;
           metawarenn::Attribute attr_pads("perm", perm);
           node_attributes.emplace_back(attr_pads);
-          auto input_name = transpose_node->getInput().generateNodeOutputName(true);
-          node_inputs.emplace_back(input_name);
-          std::cout << "\ninput_name: " << input_name;
-          auto output_name = transpose_node->getResult().generateNodeOutputName(true);
-          node_outputs.emplace_back(output_name);
-          std::cout << "\noutput_name: " << output_name;
           auto input = transpose_node->getInput().getNode();
           /* Checks if transpose layer lies between reshape nodes in Reshape -> Transpose -> Reshape order. If not,
             ignore the Transpose node to maintain the NCHW order*/
@@ -300,7 +250,7 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
           node_op_type = "Reshape";
           auto *reshape_node = llvm::cast<ReshapeNode>(node);
           auto input_name = reshape_node->getInput().generateNodeOutputName(true);
-          std::string initializer_name = std::string(node_name + "shape");
+          std::string initializer_name = std::string(node_name + "_shape");
           auto dims = reshape_node->getDims();
           std::vector<float> dims_vec(dims.size());
           std::vector<int> dims_;
@@ -311,13 +261,8 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
           }
           metawarenn::Tensor reshape_tensor(initializer_name, dims_, get_mwnn_type_glow(ElemKind::Int64ITy), dims_vec);
           graph_->set_graph_initializers(reshape_tensor);
-          node_inputs.emplace_back(input_name);
-          node_inputs.emplace_back(initializer_name);
           graph_->initializer_names.insert(initializer_name);
-          LOG(INFO) << "input_name: " << input_name;
-          auto output_name = reshape_node->getResult().generateNodeOutputName(true);
-          node_outputs.emplace_back(output_name);
-          LOG(INFO) << "output_name: " << output_name;
+          node_inputs.emplace_back(initializer_name);
           break;
         }
         case Kinded::Kind::LocalResponseNormalizationNodeKind:
@@ -332,12 +277,6 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
           node_attributes.emplace_back(attr_size);
           metawarenn::Attribute attr_bias("bias", float(lrn_node->getK()));
           node_attributes.emplace_back(attr_bias);
-          auto input_name = lrn_node->getInput().generateNodeOutputName(true);
-          node_inputs.emplace_back(input_name);
-          LOG(INFO) << "input_name: " << input_name;
-          auto output_name = lrn_node->getResult().generateNodeOutputName(true);
-          node_outputs.emplace_back(output_name);
-          LOG(INFO) << "output_name: " << output_name;
           break;
         }
         case Kinded::Kind::MaxPoolNodeKind:
@@ -355,65 +294,15 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
           node_attributes.emplace_back(attr_pad);
           metawarenn::Attribute attr_stride("strides", std::vector<int>{int(strides[0]), int(strides[1])});
           node_attributes.emplace_back(attr_stride);
-          auto input_name = maxpool_node->getInput().generateNodeOutputName(true);
-          node_inputs.emplace_back(input_name);
-          LOG(INFO) << "input_name: " << input_name;
-          auto output_name = maxpool_node->getResult().generateNodeOutputName(true);
-          node_outputs.emplace_back(output_name);
-          LOG(INFO) << "output_name: " << output_name;
+          // Remove the additional(second) output name from GLOW Function. Consider only one output for MaxPool Node.
+          if(node_outputs.size() > 1)
+            node_outputs.pop_back();
           break;
         }
         case Kinded::Kind::GemmNodeKind:
         {
           node_op_type = "Gemm";
           auto *gemm_node = llvm::cast<GemmNode>(node);
-          auto input_name = gemm_node->getNthInput(0).generateNodeOutputName(true);
-          node_inputs.emplace_back(input_name);
-          LOG(INFO) << "input_name: " << input_name;
-          std::cout << "\n gemm inputs: " << gemm_node->getNumInputs();
-          auto filter_node_value = gemm_node->getNthInput(1);
-          auto filter_name = filter_node_value.generateNodeOutputName(true);
-          graph_->initializer_names.insert(filter_name);
-          node_inputs.emplace_back(filter_name);
-          auto *filter_constant = llvm::dyn_cast<glow::Constant>(filter_node_value.getNode());
-          glow::Tensor filter_tensor = filter_constant->getPayload().clone();
-          auto type = filter_tensor.getType();
-          glow::ElemKind data_type = type.getElementType();
-          ShapeNHWC filterDims(filter_node_value.dims());
-          size_t wt_size = filterDims.n * filterDims.h; //n - height, h - width
-          std::vector<float> weights(wt_size);
-          std::vector<int> weight_dims(filter_constant->dims().vec().size());
-          weight_dims[0] = filterDims.n;
-          weight_dims[1] = filterDims.h;
-          auto handle = filter_tensor.getHandle<float>();
-          int i = 0;
-          for (auto elem : handle)
-          {
-              weights[i++] = elem;
-          }
-          metawarenn::Tensor weight_tensor(filter_name, weight_dims, get_mwnn_type_glow(data_type), weights);
-          graph_->set_graph_initializers(weight_tensor);
-          auto bias_node_value = gemm_node->getNthInput(2);
-          auto bias_name = bias_node_value.generateNodeOutputName(true);
-          LOG(INFO) << "bias_name: " << bias_name;
-          node_inputs.emplace_back(bias_name);
-          graph_->initializer_names.insert(bias_name);
-          auto *bias_constant = llvm::dyn_cast<glow::Constant>(bias_node_value.getNode());
-          glow::Tensor bias_tensor = bias_constant->getPayload().clone();
-          auto handle1 = bias_tensor.getHandle<float>();
-          auto base1 = handle1.getElementPtr({static_cast<unsigned long>(0)});
-          std::vector<float> bias(filterDims.n);
-          std::vector<int> bias_dims(1);
-          bias_dims[0] = filterDims.n;
-          i = 0;
-          for (auto elem : handle1)
-          {
-              bias[i++] = elem;
-          }
-          type = bias_tensor.getType();
-          data_type = type.getElementType();
-          metawarenn::Tensor m_bias_tensor(bias_name, bias_dims, get_mwnn_type_glow(data_type), bias);
-          graph_->set_graph_initializers(m_bias_tensor);
           metawarenn::Attribute attr_alpha("alpha", float(gemm_node->getAlpha()));
           node_attributes.emplace_back(attr_alpha);
           metawarenn::Attribute attr_beta("beta", float(gemm_node->getBeta()));
@@ -422,27 +311,14 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
           node_attributes.emplace_back(attr_transA);
           metawarenn::Attribute attr_transB("transB", int(gemm_node->getTransposeB()));
           node_attributes.emplace_back(attr_transB);
-          auto output_name = gemm_node->getResult().generateNodeOutputName(true);
-          node_outputs.emplace_back(output_name);
-          LOG(INFO) << "output_name: " << output_name;
           break;
         }
         case Kinded::Kind::ConcatNodeKind:
         {
           node_op_type = "Concat";
           auto *concat_node = llvm::cast<ConcatNode>(node);
-          auto inputs = concat_node->getInputs();
           metawarenn::Attribute attr_axis("axis", (int)1);//int(inputs[0].dims().size())});
           node_attributes.emplace_back(attr_axis);
-          for(int i = 0; i < concat_node->getInputs().size(); i++)
-          {
-            auto input_name = concat_node->getNthInput(i).generateNodeOutputName(true);
-            node_inputs.emplace_back(input_name);
-            LOG(INFO) << "input_name: " << input_name;
-          }
-          auto output_name = concat_node->getResult().generateNodeOutputName(true);
-          node_outputs.emplace_back(output_name);
-          LOG(INFO) << "output_name: " << output_name;
           break;
         }
         case Kinded::Kind::BatchNormalizationNodeKind:
@@ -453,84 +329,18 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
           node_attributes.emplace_back(attr_epsilon);
           metawarenn::Attribute attr_momentum("momentum", batchnorm_node->getMomentum());
           node_attributes.emplace_back(attr_momentum);
-          auto input_name = batchnorm_node->getInput().getNode()->getName();
-          node_inputs.emplace_back(input_name);
-          auto bias_node_value = batchnorm_node->getBias();
-          auto bias_name = bias_node_value.generateNodeOutputName(true);
-          LOG(INFO) << "bias_name: " << bias_name;
-          graph_->initializer_names.insert(bias_name);
-          auto *bias_constant = llvm::dyn_cast<glow::Constant>(bias_node_value.getNode());
-          glow::Tensor bias_tensor = bias_constant->getPayload().clone();
-          auto handle1 = bias_tensor.getHandle<float>();
-          auto base1 = handle1.getElementPtr({static_cast<unsigned long>(0)});
-          std::vector<float> bias(bias_tensor.size());
-          std::vector<int> bias_dims(1);
-          bias_dims[0] = bias_tensor.dims()[0];
-          int i = 0;
-          for (auto elem : handle1)
-          {
-              bias[i++] = elem;
-          }
-          auto type = bias_tensor.getType();
-          auto data_type = type.getElementType();
-          metawarenn::Tensor m_bias_tensor(bias_name, bias_dims, get_mwnn_type_glow(data_type), bias);
-          graph_->set_graph_initializers(m_bias_tensor);
           auto mean = batchnorm_node->getMean();
           auto var = batchnorm_node->getVar();
           auto scale = batchnorm_node->getScale();
           std::vector<int> mean_dims(mean.dims().size());
           std::vector<int> var_dims(var.dims().size());
           std::vector<int> scale_dims(scale.dims().size());
-
-          i = 0;
-          for(auto dim: mean.dims())
-            mean_dims[i++] = dim;
-          i = 0;
-          for(auto dim: var.dims())
-            var_dims[i++] = dim;
-          i = 0;
-          for(auto dim: scale.dims())
-            scale_dims[i++] = dim;
-          if (Constant *c = llvm::dyn_cast<Constant>(scale.getNode())) {
-            auto handle = c->getHandle<float>();
-            auto begin = &handle.raw(0);
-            std::vector<float> data(begin, begin + handle.actualSize());
-            metawarenn::Tensor scale_tensor(scale.getNode()->getName(), scale_dims, ElementType::element_type::float_, data);
-            graph_->set_graph_initializers(scale_tensor);
-            graph_->initializer_names.insert(scale_tensor.get_name());
-            node_inputs.emplace_back(scale_tensor.get_name());
-          }
-          node_inputs.emplace_back(bias_name);
-          if (Constant *c = llvm::dyn_cast<Constant>(mean.getNode())) {
-            auto handle = c->getHandle<float>();
-            auto begin = &handle.raw(0);
-            std::vector<float> data(begin, begin + handle.actualSize());
-            metawarenn::Tensor mean_tensor(mean.getNode()->getName(), mean_dims, ElementType::element_type::float_, data);
-            graph_->set_graph_initializers(mean_tensor);
-            graph_->initializer_names.insert(mean_tensor.get_name());
-            node_inputs.emplace_back(mean_tensor.get_name());
-          }
-          if (Constant *c = llvm::dyn_cast<Constant>(var.getNode())) {
-            auto handle = c->getHandle<float>();
-            auto begin = &handle.raw(0);
-            std::vector<float> data(begin, begin + handle.actualSize());
-            metawarenn::Tensor var_tensor(var.getNode()->getName(), var_dims, ElementType::element_type::float_, data);
-            graph_->set_graph_initializers(var_tensor);
-            graph_->initializer_names.insert(var_tensor.get_name());
-            node_inputs.emplace_back(var_tensor.get_name());
-          }
-
-          auto output_name = batchnorm_node->getResult().generateNodeOutputName(true);
-          node_outputs.emplace_back(output_name);
-          LOG(INFO) << "output_name: " << output_name;
           break;
         }
         case Kinded::Kind::ClipNodeKind:
         {
           node_op_type = "Clip";
           auto *clip_node = llvm::cast<ClipNode>(node);
-          auto input_name = clip_node->getInput().generateNodeOutputName(true);
-          node_inputs.emplace_back(input_name);
           metawarenn::Tensor min_tensor(node_name + "_min", std::vector<int>{1}, ElementType::element_type::float_, std::vector<float>{(float)clip_node->getMin()});
           graph_->set_graph_initializers(min_tensor);
           graph_->initializer_names.insert(min_tensor.get_name());
@@ -539,85 +349,25 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
           graph_->set_graph_initializers(max_tensor);
           graph_->initializer_names.insert(max_tensor.get_name());
           node_inputs.emplace_back(max_tensor.get_name());
-          auto output_name = clip_node->getResult().generateNodeOutputName(true);
-          node_outputs.emplace_back(output_name);
-          LOG(INFO) << "output_name: " << output_name;
           break;
         }
         case Kinded::Kind::FullyConnectedNodeKind:
         {
           node_op_type = "Gemm";
-          auto *fc_node = llvm::cast<FullyConnectedNode>(node);
-          auto input_name = fc_node->getInput().generateNodeOutputName(true);
-          node_inputs.emplace_back(input_name);
-          LOG(INFO) << "input_name: " << input_name;
-          auto filter_node_value = fc_node->getWeights();
-          auto filter_name = filter_node_value.generateNodeOutputName(true);
-          auto *filter_constant = llvm::dyn_cast<glow::Constant>(filter_node_value.getNode());
-          glow::Tensor filter_tensor = filter_constant->getPayload().clone();
-          auto type = filter_tensor.getType();
-          glow::ElemKind data_type = type.getElementType();
-          ShapeNHWC filterDims(filter_node_value.dims());
-          size_t wt_size = filterDims.n * filterDims.h; //n - height, h - width
-          std::vector<float> weights(wt_size);
-          std::vector<int> weight_dims;
-          weight_dims.push_back((int)filterDims.n);
-          weight_dims.push_back((int)filterDims.h);
-          auto handle = filter_tensor.getHandle<float>();
-          int i = 0;
-          for (auto elem : handle)
-          {
-              weights[i++] = elem;
-          }
-          graph_->initializer_names.insert(filter_name);
-          node_inputs.emplace_back(filter_name);
-          metawarenn::Tensor weight_tensor(filter_name, weight_dims, get_mwnn_type_glow(data_type), weights);
-          graph_->set_graph_initializers(weight_tensor);
-          auto bias_node_value = fc_node->getBias();
-          auto bias_name = bias_node_value.generateNodeOutputName(true);
-          LOG(INFO) << "bias_name: " << bias_name;
-          node_inputs.emplace_back(bias_name);
-          graph_->initializer_names.insert(bias_name);
-          auto *bias_constant = llvm::dyn_cast<glow::Constant>(bias_node_value.getNode());
-          glow::Tensor bias_tensor = bias_constant->getPayload().clone();
-          auto handle1 = bias_tensor.getHandle<float>();
-          auto base1 = handle1.getElementPtr({static_cast<unsigned long>(0)});
-          std::vector<float> bias(filterDims.h);
-          std::vector<int> bias_dims(1);
-          bias_dims[0] = filterDims.h;
-          i = 0;
-          for (auto elem : handle1)
-          {
-              bias[i++] = elem;
-          }
-          type = bias_tensor.getType();
-          data_type = type.getElementType();
-          metawarenn::Tensor m_bias_tensor(bias_name, bias_dims, get_mwnn_type_glow(data_type), bias);
-          graph_->set_graph_initializers(m_bias_tensor);
-          auto output_name = fc_node->getResult().generateNodeOutputName(true);
-          node_outputs.emplace_back(output_name);
-          LOG(INFO) << "output_name: " << output_name;
           break;
         }
         case Kinded::Kind::SoftMaxNodeKind:
         {
           node_op_type = "Softmax";
-          auto *softmax_node = llvm::cast<SoftMaxNode>(node);
-          auto input_name = softmax_node->getInput().generateNodeOutputName(true);
-          node_inputs.emplace_back(input_name);
-          LOG(INFO) << "input_name: " << input_name;
-          auto output_name = softmax_node->getResult().generateNodeOutputName(true);
-          node_outputs.emplace_back(output_name);
-          LOG(INFO) << "output_name: " << output_name;
+          // Remove the additional(second) input name from GLOW Function. Consider only one input for Softmax Node.
+          if(node_inputs.size() > 1)
+            node_inputs.pop_back();
           break;
         }
         case Kinded::Kind::SliceNodeKind:
         {
           node_op_type = "Slice";
           auto *slice_node = llvm::cast<SliceNode>(node);
-          auto input_name = slice_node->getInput().generateNodeOutputName(true);
-          node_inputs.emplace_back(input_name);
-          LOG(INFO) << "input_name: " << input_name;
           auto input_dims = slice_node->getInput().dims();
           auto starts = slice_node->getStart();
           auto outs = slice_node->getResult().dims();
@@ -641,21 +391,11 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
           graph_->set_graph_initializers(tensor_ends);
           graph_->initializer_names.insert(tensor_ends.get_name());
           node_inputs.emplace_back(tensor_ends.get_name());
-          auto output_name = slice_node->getResult().generateNodeOutputName(true);
-          node_outputs.emplace_back(output_name);
-          LOG(INFO) << "output_name: " << output_name;
           break;
         }
         case Kinded::Kind::PowNodeKind:
         {
           node_op_type = "Pow";
-          auto *pow_node = llvm::cast<PowNode>(node);
-          auto input_name = pow_node->getNthInput(0).generateNodeOutputName(true);
-          node_inputs.emplace_back(input_name);
-          LOG(INFO) << "input_name: " << input_name;
-          auto output_name = pow_node->getResult().generateNodeOutputName(true);
-          node_outputs.emplace_back(output_name);
-          LOG(INFO) << "output_name: " << output_name;
           break;
         }
         case Kinded::Kind::TopKNodeKind:
@@ -666,13 +406,6 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
           metawarenn::Tensor k_tensor("K", std::vector<int>{1}, ElementType::element_type::float_, std::vector<float>{float(k_val)});
           graph_->set_graph_initializers(k_tensor);
           graph_->initializer_names.insert(k_tensor.get_name());
-          node_inputs.emplace_back(k_tensor.get_name());
-          auto input_name = topk_node->getInput().generateNodeOutputName(true);
-          node_inputs.emplace_back(input_name);
-          LOG(INFO) << "input_name: " << input_name;
-          auto output_name = std::string(topk_node->getOutputName(0));
-          node_outputs.emplace_back(output_name);
-          LOG(INFO) << "output_name: " << output_name;
           break;
         }
         case Kinded::Kind::ArgMaxNodeKind:
@@ -682,12 +415,6 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
           metawarenn::Attribute attr_axis("axis", int(argmax_node->getAxis()));
           metawarenn::Attribute attr_keep_dims("keepDims", int(argmax_node->getKeepDims()));
           node_attributes.emplace_back(attr_axis);
-          auto input_name = argmax_node->getInput().generateNodeOutputName(true);
-          node_inputs.emplace_back(input_name);
-          LOG(INFO) << "input_name: " << input_name;
-          auto output_name = argmax_node->getResult().generateNodeOutputName(true);
-          node_outputs.emplace_back(output_name);
-          LOG(INFO) << "output_name: " << output_name;
           break;
         }
         case Kinded::Kind::ArgMinNodeKind:
@@ -698,21 +425,12 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
           node_attributes.emplace_back(attr_axis);
           metawarenn::Attribute attr_keep_dims("keepDims", int(argmin_node->getKeepDims()));
           node_attributes.emplace_back(attr_keep_dims);
-          auto input_name = argmin_node->getInput().generateNodeOutputName(true);
-          node_inputs.emplace_back(input_name);
-          LOG(INFO) << "input_name: " << input_name;
-          auto output_name = argmin_node->getResult().generateNodeOutputName(true);
-          node_outputs.emplace_back(output_name);
-          LOG(INFO) << "output_name: " << output_name;
           break;
         }
         case Kinded::Kind::PReluNodeKind:
         {
           node_op_type = "PRelu";
           auto *prelu_node = llvm::cast<PReluNode>(node);
-          auto input_name = prelu_node->getInput().generateNodeOutputName(true);
-          node_inputs.emplace_back(input_name);
-          LOG(INFO) << "input_name: " << input_name;
           auto slope = prelu_node->getSlope();
           if (const auto *BN = llvm::dyn_cast<BroadcastNode>(slope)) {
             node_inputs.emplace_back(BN->getInput().getNode()->getName());
@@ -735,171 +453,61 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
             graph_->set_graph_initializers(slope_tensor);
             graph_->initializer_names.insert(slope_tensor.get_name());
           }
-          auto output_name = prelu_node->getResult().generateNodeOutputName(true);
-          node_outputs.emplace_back(output_name);
-          LOG(INFO) << "output_name: " << output_name;
           break;
         }
         case Kinded::Kind::GatherNodeKind:
         {
           node_op_type = "Gather";
           auto *gather_node = llvm::cast<GatherNode>(node);
-          auto input_name = gather_node->getNthInput(0).generateNodeOutputName(true);
-          node_inputs.emplace_back(input_name);
-          LOG(INFO) << "input_name: " << input_name;
           auto batch_dims = gather_node->getBatchDims();
           metawarenn::Attribute attr_axis("axis", (int)batch_dims);
           node_attributes.emplace_back(attr_axis);
-          NodeValue indices = gather_node->getIndices();
-          std::vector<int> ind_dims;
-          int i = 0;
-          for(auto dim: indices.dims())
-            ind_dims[i++] = dim;
-          if (Constant *c = llvm::dyn_cast<Constant>(indices.getNode())) {
-            auto handle = c->getHandle<int>();
-            auto begin = &handle.raw(0);
-            std::vector<float> data(begin, begin + handle.actualSize());
-            metawarenn::Tensor indices_tensor(indices.getNode()->getName(), ind_dims, ElementType::element_type::float_, data);
-            graph_->set_graph_initializers(indices_tensor);
-            graph_->initializer_names.insert(indices_tensor.get_name());
-            node_inputs.emplace_back(indices_tensor.get_name());
-          }
-          auto output_name = gather_node->getResult().generateNodeOutputName(true);
-          node_outputs.emplace_back(output_name);
-          LOG(INFO) << "output_name: " << output_name;
           break;
         }
         case Kinded::Kind::MulNodeKind:
         {
           node_op_type = "Mul";
-          auto *mul_node = llvm::cast<MulNode>(node);
-          auto input1 = mul_node->getLHS().generateNodeOutputName(true);
-          LOG(INFO) << "input_name 1: " << input1;
-          auto input2 = mul_node->getRHS().generateNodeOutputName(true);
-          LOG(INFO) << "input_name 2: " << input2;
-          node_inputs.emplace_back(input1);
-          node_inputs.emplace_back(input2);
-          auto mul_nodevalue1 = mul_node->getLHS();
-          auto mul_nodevalue2 = mul_node->getRHS();
-          std::vector<NodeValue> mul_operands = {mul_nodevalue1, mul_nodevalue2};
-          for(auto operand: mul_operands) {
-            auto operand_name = operand.getNode()->getName();
-            if (Constant *c = llvm::dyn_cast<Constant>(operand.getNode())) {
-              std::vector<int> const_dims(operand.dims().size());
-              int i = 0;
-              for(auto dim: operand.dims()) {
-                const_dims[i++] = (int)dim;
-              }
-              auto handle = c->getHandle<float>();
-              auto begin = &handle.raw(0);
-              std::vector<float> data(begin, begin + handle.actualSize());
-              metawarenn::Tensor tensor(operand_name, const_dims, ElementType::element_type::float_, data);
-              graph_->set_graph_initializers(tensor);
-              graph_->initializer_names.insert(tensor.get_name());
-            }
-          }
-          auto output_name = mul_node->getResult().generateNodeOutputName(true);
-          node_outputs.emplace_back(output_name);
-          LOG(INFO) << "output_name: " << output_name;
           break;
         }
         case Kinded::Kind::DivNodeKind:
         {
           node_op_type = "Div";
-          auto *div_node = llvm::cast<DivNode>(node);
-          auto input1 = div_node->getLHS().generateNodeOutputName(true);
-          LOG(INFO) << "input_name 1: " << input1;
-          auto input2 = div_node->getRHS().generateNodeOutputName(true);
-          LOG(INFO) << "input_name 2: " << input2;
-          node_inputs.emplace_back(input1);
-          node_inputs.emplace_back(input2);
-          auto output_name = div_node->getResult().generateNodeOutputName(true);
-          node_outputs.emplace_back(output_name);
-          LOG(INFO) << "output_name: " << output_name;
           break;
         }
         case Kinded::Kind::SubNodeKind:
         {
           node_op_type = "Sub";
-          auto *sub_node = llvm::cast<SubNode>(node);
-          auto input1 = sub_node->getLHS().generateNodeOutputName(true);
-          LOG(INFO) << "input_name 1: " << input1;
-          auto input2 = sub_node->getRHS().generateNodeOutputName(true);
-          LOG(INFO) << "input_name 2: " << input2;
-          node_inputs.emplace_back(input1);
-          node_inputs.emplace_back(input2);
-          auto output_name = sub_node->getResult().generateNodeOutputName(true);
-          node_outputs.emplace_back(output_name);
-          LOG(INFO) << "output_name: " << output_name;
           break;
         }
         case Kinded::Kind::AbsNodeKind:
         {
           node_op_type = "Abs";
-          auto *abs_node = llvm::cast<AbsNode>(node);
-          auto input_name = abs_node->getInput().generateNodeOutputName(true);
-          node_inputs.emplace_back(input_name);
-          LOG(INFO) << "input_name: " << input_name;
-          auto output_name = abs_node->getResult().generateNodeOutputName(true);
-          node_outputs.emplace_back(output_name);
-          LOG(INFO) << "output_name: " << output_name;
           break;
         }
         case Kinded::Kind::AndNodeKind:
         {
           node_op_type = "And";
-          auto *and_node = llvm::cast<AndNode>(node);
-          auto input_name = and_node->getNthInput(0).generateNodeOutputName(true);
-          node_inputs.emplace_back(input_name);
-          LOG(INFO) << "input_name: " << input_name;
-          auto output_name = and_node->getResult().generateNodeOutputName(true);
-          node_outputs.emplace_back(output_name);
-          LOG(INFO) << "output_name: " << output_name;
           break;
         }
         case Kinded::Kind::ExpNodeKind:
         {
           node_op_type = "Exp";
-          auto *exp_node = llvm::cast<ExpNode>(node);
-          auto input_name = exp_node->getInput().generateNodeOutputName(true);
-          node_inputs.emplace_back(input_name);
-          LOG(INFO) << "input_name: " << input_name;
-          auto output_name = exp_node->getResult().generateNodeOutputName(true);
-          node_outputs.emplace_back(output_name);
-          LOG(INFO) << "output_name: " << output_name;
           break;
         }
         case Kinded::Kind::MaxNodeKind:
         {
           node_op_type = "Max";
-          auto *max_node = llvm::cast<MaxNode>(node);
-          auto input_name = max_node->getNthInput(0).generateNodeOutputName(true);
-          node_inputs.emplace_back(input_name);
-          LOG(INFO) << "input_name: " << input_name;
-          auto output_name = max_node->getResult().generateNodeOutputName(true);
-          node_outputs.emplace_back(output_name);
-          LOG(INFO) << "output_name: " << output_name;
           break;
         }
         case Kinded::Kind::MinNodeKind:
         {
           node_op_type = "Min";
-          auto *min_node = llvm::cast<MinNode>(node);
-          auto input_name = min_node->getNthInput(0).generateNodeOutputName(true);
-          node_inputs.emplace_back(input_name);
-          LOG(INFO) << "input_name: " << input_name;
-          auto output_name = min_node->getResult().generateNodeOutputName(true);
-          node_outputs.emplace_back(output_name);
-          LOG(INFO) << "output_name: " << output_name;
           break;
         }
         case Kinded::Kind::PadNodeKind:
         {
           node_op_type = "Pad";
           auto *pad_node = llvm::cast<PadNode>(node);
-          auto input_name = pad_node->getInput().generateNodeOutputName(true);
-          node_inputs.emplace_back(input_name);
-          LOG(INFO) << "input_name: " << input_name;
           auto pads = pad_node->getPads();
           metawarenn::Tensor pads_tensor(node_name + "_pads", std::vector<int>{(int)pads.size()}, ElementType::element_type::float_, std::vector<float>{(float)pads[0], (float)pads[1], (float)pads[2], (float)pads[3]});
           node_inputs.emplace_back(pads_tensor.get_name());
@@ -907,45 +515,21 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
           node_inputs.emplace_back(value_tensor.get_name());
           metawarenn::Attribute attr_mode("mode", int(pad_node->getMode()));
           node_attributes.emplace_back(attr_mode);
-          auto output_name = pad_node->getResult().generateNodeOutputName(true);
-          node_outputs.emplace_back(output_name);
-          LOG(INFO) << "output_name: " << output_name;
           break;
         }
         case Kinded::Kind::CeilNodeKind:
         {
           node_op_type = "Ceil";
-          auto *ceil_node = llvm::cast<CeilNode>(node);
-          auto input_name = ceil_node->getInput().generateNodeOutputName(true);
-          node_inputs.emplace_back(input_name);
-          LOG(INFO) << "input_name: " << input_name;
-          auto output_name = ceil_node->getResult().generateNodeOutputName(true);
-          node_outputs.emplace_back(output_name);
-          LOG(INFO) << "output_name: " << output_name;
           break;
         }
         case Kinded::Kind::FloorNodeKind:
         {
           node_op_type = "Floor";
-          auto *floor_node = llvm::cast<FloorNode>(node);
-          auto input_name = floor_node->getInput().generateNodeOutputName(true);
-          node_inputs.emplace_back(input_name);
-          LOG(INFO) << "input_name: " << input_name;
-          auto output_name = floor_node->getResult().generateNodeOutputName(true);
-          node_outputs.emplace_back(output_name);
-          LOG(INFO) << "output_name: " << output_name;
           break;
         }
         case Kinded::Kind::SwishNodeKind:
         {
           node_op_type = "HardSwish";
-          auto *swish_node = llvm::cast<SwishNode>(node);
-          auto input_name = swish_node->getInput().generateNodeOutputName(true);
-          node_inputs.emplace_back(input_name);
-          LOG(INFO) << "input_name: " << input_name;
-          auto output_name = swish_node->getResult().generateNodeOutputName(true);
-          node_outputs.emplace_back(output_name);
-          LOG(INFO) << "output_name: " << output_name;
           break;
         }
         case Kinded::Kind::LeakyReluNodeKind:
@@ -954,92 +538,24 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
           auto *lrelu_node = llvm::cast<LeakyReluNode>(node);
           metawarenn::Attribute attr_alpha("alpha", (float)lrelu_node->getAlpha());
           node_attributes.emplace_back(attr_alpha);
-          auto input_name = lrelu_node->getInput().generateNodeOutputName(true);
-          node_inputs.emplace_back(input_name);
-          LOG(INFO) << "input_name: " << input_name;
-          auto output_name = lrelu_node->getResult().generateNodeOutputName(true);
-          node_outputs.emplace_back(output_name);
-          LOG(INFO) << "output_name: " << output_name;
           break;
         }
         case Kinded::Kind::LogNodeKind:
         {
           node_op_type = "Log";
-          auto *log_node = llvm::cast<LogNode>(node);
-          auto input_name = log_node->getInput().generateNodeOutputName(true);
-          node_inputs.emplace_back(input_name);
-          LOG(INFO) << "input_name: " << input_name;
-          auto output_name = log_node->getResult().generateNodeOutputName(true);
-          node_outputs.emplace_back(output_name);
-          LOG(INFO) << "output_name: " << output_name;
           break;
         }
         case Kinded::Kind::MatMulNodeKind:
         {
           node_op_type = "MatMul";
-          auto *matmul_node = llvm::cast<MatMulNode>(node);
-          auto input1 = matmul_node->getLHS().generateNodeOutputName(true);
-          LOG(INFO) << "input_name 1: " << input1;
-          auto input2 = matmul_node->getRHS().generateNodeOutputName(true);
-          LOG(INFO) << "input_name 2: " << input2;
-          node_inputs.emplace_back(input1);
-          node_inputs.emplace_back(input2);
-          auto matmul_nodevalue = matmul_node->getRHS();
-          std::vector<int> const_dims(matmul_nodevalue.dims().size());
-          if (Constant *c = llvm::dyn_cast<Constant>(matmul_nodevalue.getNode())) {
-            int i = 0;
-            for(auto dim: matmul_nodevalue.dims()) {
-              const_dims[i++] = dim;
-            }
-            auto handle = c->getHandle<float>();
-            auto begin = &handle.raw(0);
-            std::vector<float> data(begin, begin + handle.actualSize());
-            metawarenn::Tensor indices_tensor(input2, const_dims, ElementType::element_type::float_, data);
-            graph_->set_graph_initializers(indices_tensor);
-            graph_->initializer_names.insert(indices_tensor.get_name());
-          }
-          auto output_name = matmul_node->getResult().generateNodeOutputName(true);
-          node_outputs.emplace_back(output_name);
-          LOG(INFO) << "output_name: " << output_name;
           break;
         }
         case Kinded::Kind::NonMaxSuppressionNodeKind:
         {
           node_op_type = "NonMaxSuppression";
           auto *nms_node = llvm::cast<NonMaxSuppressionNode>(node);
-          auto input_name = nms_node->getNthInput(0).generateNodeOutputName(true);
-          node_inputs.emplace_back(input_name);
-          LOG(INFO) << "input_name: " << input_name;
           metawarenn::Attribute attr_cpb("center_point_box", (int)nms_node->getCenterPointBox());
           node_attributes.emplace_back(attr_cpb);
-          NodeValue boxes = nms_node->getBoxes();
-          NodeValue scores = nms_node->getScores();
-          std::vector<int> box_dims(boxes.dims().size());
-          std::vector<int> scores_dims(scores.dims().size());
-          int i = 0;
-          for(auto dim: boxes.dims())
-            box_dims[i++] = dim;
-          i = 0;
-          for(auto dim: scores.dims())
-            scores_dims[i++] = dim;
-          if (Constant *c = llvm::dyn_cast<Constant>(boxes.getNode())) {
-            auto handle = c->getHandle<float>();
-            auto begin = &handle.raw(0);
-            std::vector<float> data(begin, begin + handle.actualSize());
-            metawarenn::Tensor boxes_tensor(boxes.getNode()->getName(), box_dims, ElementType::element_type::float_, data);
-            graph_->set_graph_initializers(boxes_tensor);
-            graph_->initializer_names.insert(boxes_tensor.get_name());
-            node_inputs.emplace_back(boxes_tensor.get_name());
-          }
-          if (Constant *c = llvm::dyn_cast<Constant>(scores.getNode())) {
-            auto handle = c->getHandle<float>();
-            auto begin = &handle.raw(0);
-            std::vector<float> data(begin, begin + handle.actualSize());
-            metawarenn::Tensor scores_tensor(scores.getNode()->getName(), scores_dims, ElementType::element_type::float_, data);
-            graph_->set_graph_initializers(scores_tensor);
-            graph_->initializer_names.insert(scores_tensor.get_name());
-            node_inputs.emplace_back(scores_tensor.get_name());
-          }
           metawarenn::Tensor max_out_box_tensor(node_name + "_max_out_box", std::vector<int>{1}, ElementType::element_type::float_, std::vector<float>{float(nms_node->getMaxOutputBoxesPerClass())});
           graph_->set_graph_initializers(max_out_box_tensor);
           graph_->initializer_names.insert(max_out_box_tensor.get_name());
@@ -1052,21 +568,11 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
           graph_->set_graph_initializers(score_threshold_tensor);
           graph_->initializer_names.insert(score_threshold_tensor.get_name());
           node_inputs.emplace_back(score_threshold_tensor.get_name());
-          auto output_name = nms_node->getOutputName(0).str();
-          node_outputs.emplace_back(output_name);
-          LOG(INFO) << "output_name: " << output_name;
           break;
         }
         case Kinded::Kind::NotNodeKind:
         {
           node_op_type = "Not";
-          auto *not_node = llvm::cast<NotNode>(node);
-          auto input_name = not_node->getInput().generateNodeOutputName(true);
-          node_inputs.emplace_back(input_name);
-          LOG(INFO) << "input_name: " << input_name;
-          auto output_name = not_node->getResult().generateNodeOutputName(true);
-          node_outputs.emplace_back(output_name);
-          LOG(INFO) << "output_name: " << output_name;
           break;
         }
         case Kinded::Kind::BatchedReduceMeanNodeKind:
@@ -1080,12 +586,6 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
             axes_vec[i++] = axes[i];
           metawarenn::Attribute attr_axes("axes", axes_vec);
           node_attributes.emplace_back(attr_axes);
-          auto input_name = reduce_mean_node->getNthInput(0).generateNodeOutputName(true);
-          node_inputs.emplace_back(input_name);
-          LOG(INFO) << "input_name: " << input_name;
-          auto output_name = reduce_mean_node->getResult().generateNodeOutputName(true);
-          node_outputs.emplace_back(output_name);
-          LOG(INFO) << "output_name: " << output_name;
           break;
         }
         case Kinded::Kind::BatchedReduceMinNodeKind:
@@ -1099,21 +599,12 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
             axes_vec[i++] = axes[i];
           metawarenn::Attribute attr_axes("axes", axes_vec);
           node_attributes.emplace_back(attr_axes);
-          auto input_name = reduce_min_node->getNthInput(0).generateNodeOutputName(true);
-          node_inputs.emplace_back(input_name);
-          LOG(INFO) << "input_name: " << input_name;
-          auto output_name = reduce_min_node->getResult().generateNodeOutputName(true);
-          node_outputs.emplace_back(output_name);
-          LOG(INFO) << "output_name: " << output_name;
           break;
         }
         case Kinded::Kind::BatchedReduceMaxNodeKind:
         {
           node_op_type = "ReduceMax";
           auto *reduce_max_node = llvm::cast<BatchedReduceMaxNode>(node);
-          auto input_name = reduce_max_node->getNthInput(0).generateNodeOutputName(true);
-          node_inputs.emplace_back(input_name);
-          LOG(INFO) << "input_name: " << input_name;
           auto axes = reduce_max_node->getAxes();
           std::vector<int> axes_vec(axes.size());
           int i = 0;
@@ -1121,9 +612,6 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
             axes_vec[i++] = axes[i];
           metawarenn::Attribute attr_axes("axes", axes_vec);
           node_attributes.emplace_back(attr_axes);
-          auto output_name = reduce_max_node->getResult().generateNodeOutputName(true);
-          node_outputs.emplace_back(output_name);
-          LOG(INFO) << "output_name: " << output_name;
           break;
         }
         case Kinded::Kind::BatchedReduceSumSquareNodeKind:
@@ -1133,21 +621,12 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
           auto *reduce_add_node = llvm::cast<BatchedReduceAddNode>(node);
           metawarenn::Attribute attr_axes("axes", (int)reduce_add_node->getAxis());
           node_attributes.emplace_back(attr_axes);
-          auto input_name = reduce_add_node->getNthInput(0).generateNodeOutputName(true);
-          node_inputs.emplace_back(input_name);
-          LOG(INFO) << "input_name: " << input_name;
-          auto output_name = reduce_add_node->getResult().generateNodeOutputName(true);
-          node_outputs.emplace_back(output_name);
-          LOG(INFO) << "output_name: " << output_name;
           break;
         }
         case Kinded::Kind::ResizeNearestNodeKind:
         {
           node_op_type = "Resize";
           auto *resize_near_node = llvm::cast<ResizeNearestNode>(node);
-          auto input_name = resize_near_node->getInput().generateNodeOutputName(true);
-          node_inputs.emplace_back(input_name);
-          LOG(INFO) << "input_name: " << input_name;
           auto scales = resize_near_node->getScale();
           std::vector<float> scale_vec(scales.size());
           int i = 0;
@@ -1163,18 +642,12 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
           node_attributes.emplace_back(attr_mode);
           metawarenn::Attribute attr_near_mode("nearest_mode", "floor");
           node_attributes.emplace_back(attr_near_mode);
-          auto output_name = resize_near_node->getResult().generateNodeOutputName(true);
-          node_outputs.emplace_back(output_name);
-          LOG(INFO) << "output_name: " << output_name;
           break;
         }
         case Kinded::Kind::ResizeBilinearNodeKind:
         {
           node_op_type = "Resize";
           auto *resize_bilinear_node = llvm::cast<ResizeBilinearNode>(node);
-          auto input_name = resize_bilinear_node->getInput().generateNodeOutputName(true);
-          node_inputs.emplace_back(input_name);
-          LOG(INFO) << "input_name: " << input_name;
           auto scales = resize_bilinear_node->getScale();
           std::vector<float> scale_vec(scales.size());
           int i = 0;
@@ -1188,46 +661,12 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
           node_attributes.emplace_back(attr_trans_mode);
           metawarenn::Attribute attr_mode("mode", "linear");
           node_attributes.emplace_back(attr_mode);
-          auto output_name = resize_bilinear_node->getResult().generateNodeOutputName(true);
-          node_outputs.emplace_back(output_name);
-          LOG(INFO) << "output_name: " << output_name;
           break;
         }
         case Kinded::Kind::ROIAlignNodeKind:
         {
           node_op_type = "RoiAlign";
           auto *roi_align_node = llvm::cast<ROIAlignNode>(node);
-          auto input_name = roi_align_node->getNthInput(0).generateNodeOutputName(true);
-          node_inputs.emplace_back(input_name);
-          LOG(INFO) << "input_name: " << input_name;
-          std::vector<int> roi_dims;
-          std::vector<int> batch_ind_dims;
-          NodeValue boxes = roi_align_node->getBoxes();
-          NodeValue batch_indices = roi_align_node->getBatchIndices();
-          int i = 0;
-          for(auto dim: boxes.dims())
-            roi_dims[i++] = dim;
-          i = 0;
-          for(auto dim: batch_indices.dims())
-            batch_ind_dims[i++] = dim;
-          if (Constant *c = llvm::dyn_cast<Constant>(boxes.getNode())) {
-            auto handle = c->getHandle<int>();
-            auto begin = &handle.raw(0);
-            std::vector<float> data(begin, begin + handle.actualSize());
-            metawarenn::Tensor rois_tensor(boxes.getNode()->getName(), roi_dims, ElementType::element_type::float_, data);
-            graph_->set_graph_initializers(rois_tensor);
-            graph_->initializer_names.insert(rois_tensor.get_name());
-            node_inputs.emplace_back(rois_tensor.get_name());
-          }
-          if (Constant *c = llvm::dyn_cast<Constant>(batch_indices.getNode())) {
-            auto handle = c->getHandle<int>();
-            auto begin = &handle.raw(0);
-            std::vector<float> data(begin, begin + handle.actualSize());
-            metawarenn::Tensor batch_ind_tensor(batch_indices.getNode()->getName(), roi_dims, ElementType::element_type::float_, data);
-            graph_->set_graph_initializers(batch_ind_tensor);
-            graph_->initializer_names.insert(batch_ind_tensor.get_name());
-            node_inputs.emplace_back(batch_ind_tensor.get_name());
-          }
           switch(roi_align_node->getMode()) {
             case PoolingMode::AVG: {
               metawarenn::Attribute attr_mode("mode", "avg");
@@ -1248,80 +687,37 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
           node_attributes.emplace_back(attr_s_ratio);
           metawarenn::Attribute attr_s_scale("spatial_scale", (float)roi_align_node->getSpatialScale());
           node_attributes.emplace_back(attr_s_scale);
-          auto output_name = roi_align_node->getResult().generateNodeOutputName(true);
-          node_outputs.emplace_back(output_name);
-          LOG(INFO) << "output_name: " << output_name;
           break;
         }
         case Kinded::Kind::RoundNodeKind:
         {
           node_op_type = "Round";
-          auto *round_node = llvm::cast<RoundNode>(node);
-          auto input_name = round_node->getInput().generateNodeOutputName(true);
-          node_inputs.emplace_back(input_name);
-          LOG(INFO) << "input_name: " << input_name;
-          auto output_name = round_node->getResult().generateNodeOutputName(true);
-          node_outputs.emplace_back(output_name);
-          LOG(INFO) << "output_name: " << output_name;
           break;
         }
         case Kinded::Kind::SigmoidNodeKind:
         {
           node_op_type = "Sigmoid";
-          auto *sigmoid_node = llvm::cast<SigmoidNode>(node);
-          auto input_name = sigmoid_node->getInput().generateNodeOutputName(true);
-          node_inputs.emplace_back(input_name);
-          LOG(INFO) << "input_name: " << input_name;
-          auto output_name = sigmoid_node->getResult().generateNodeOutputName(true);
-          node_outputs.emplace_back(output_name);
-          LOG(INFO) << "output_name: " << output_name;
           break;
         }
         case Kinded::Kind::SpaceToDepthNodeKind:
         {
           node_op_type = "SpaceToDepth";
-          auto *space_depth_node = llvm::cast<SpaceToDepthNode>(node);
-          metawarenn::Attribute attr_b_size("blocksize", (int)space_depth_node->getBlockSize());
-          node_attributes.emplace_back(attr_b_size);
-          auto input_name = space_depth_node->getInput().generateNodeOutputName(true);
-          node_inputs.emplace_back(input_name);
-          LOG(INFO) << "input_name: " << input_name;
-          auto output_name = space_depth_node->getResult().generateNodeOutputName(true);
-          node_outputs.emplace_back(output_name);
-          LOG(INFO) << "output_name: " << output_name;
           break;
         }
         case Kinded::Kind::SqrtNodeKind:
         {
           node_op_type = "Sqrt";
-          auto *sqrt_node = llvm::cast<SqrtNode>(node);
-          auto input_name = sqrt_node->getInput().generateNodeOutputName(true);
-          node_inputs.emplace_back(input_name);
-          LOG(INFO) << "input_name: " << input_name;
-          auto output_name = sqrt_node->getResult().generateNodeOutputName(true);
-          node_outputs.emplace_back(output_name);
-          LOG(INFO) << "output_name: " << output_name;
           break;
         }
         case Kinded::Kind::TanhNodeKind:
         {
           node_op_type = "Tanh";
-          auto *tanh_node = llvm::cast<TanhNode>(node);
-          auto input_name = tanh_node->getInput().generateNodeOutputName(true);
-          node_inputs.emplace_back(input_name);
-          LOG(INFO) << "input_name: " << input_name;
-          auto output_name = tanh_node->getResult().generateNodeOutputName(true);
-          node_outputs.emplace_back(output_name);
-          LOG(INFO) << "output_name: " << output_name;
           break;
         }
         case Kinded::Kind::TileNodeKind:
         {
           node_op_type = "Tile";
           auto *tile_node = llvm::cast<TileNode>(node);
-          auto input_name = tile_node->getInput().generateNodeOutputName(true);
-          node_inputs.emplace_back(input_name);
-          LOG(INFO) << "input_name: " << input_name;
           std::vector<std::pair<unsigned_t, unsigned_t>> info;
           std::vector<size_t> repeats;
           const TileNode *tile = tile_node;
@@ -1353,18 +749,12 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
           metawarenn::Tensor repeats_tensor(node_name + "_repeats", std::vector<int>{(int)repeats_arr.size()}, ElementType::element_type::float_, repeats_vec);
           graph_->set_graph_initializers(repeats_tensor);
           graph_->initializer_names.insert(repeats_tensor.get_name());
-          auto output_name = tile_node->getResult().generateNodeOutputName(true);
-          node_outputs.emplace_back(output_name);
-          LOG(INFO) << "output_name: " << output_name;
           break;
         }
         case Kinded::Kind::ConvTransposeNodeKind:
         {
           node_op_type = "ConvTranspose";
           auto *conv_trans_node = llvm::cast<ConvTransposeNode>(node);
-          auto input_name = conv_trans_node->getInput().generateNodeOutputName(true);
-          node_inputs.emplace_back(input_name);
-          LOG(INFO) << "input_name: " << input_name;
           auto kernels = conv_trans_node->getKernels();
           auto dilations = conv_trans_node->getDilation();
           auto strides = conv_trans_node->getStrides();
@@ -1392,9 +782,6 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
           node_attributes.emplace_back(attr_pad);
           metawarenn::Attribute attr_stride("strides", std::vector<int>{int(strides[0]), int(strides[1])});
           node_attributes.emplace_back(attr_stride);
-          auto output_name = conv_trans_node->getResult().generateNodeOutputName(true);
-          node_outputs.emplace_back(output_name);
-          LOG(INFO) << "output_name: " << output_name;
           break;
         }
         default:
@@ -1448,7 +835,7 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
         Tensor op_tensor(global_output_name, get_mwnn_type_glow(data_type), dims);
         graph_->set_graph_op_tensor(op_tensor);
       }
-      else if(V->getName().equals(global_input_name)) {
+      else if(V->getName().equals(F->findPlaceholders().front()->getName())) {
         graph_->set_graph_ip_names(global_input_name);
         //Fills Graph Input Tensor Details - Name, Dims
         Tensor ip_tensor(global_input_name, get_mwnn_type_glow(data_type), dims);

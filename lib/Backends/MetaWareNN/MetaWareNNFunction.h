@@ -38,6 +38,7 @@ public:
   const PlaceholderList &getOutputs() const { return outputs_; }
   ///@}
 
+  void read_tensor(glow::Constant *c, std::string tensor_name, ElemKind elem_kind);
   static ElementType::element_type get_mwnn_type_glow(ElemKind glow_type) {
       switch (glow_type) {
           case ElemKind::BoolTy:
