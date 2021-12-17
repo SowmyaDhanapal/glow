@@ -79,33 +79,62 @@ void convert_glow_to_onnx(Function *F)
   }
 }
 
-
+template<class T>
 void MetaWareNNFunction::read_tensor(glow::Constant *c, std::string tensor_name, ElemKind elem_kind) {
   std::vector<int> const_dims(c->dims().size());
   std::cout << "\n initializer - " << tensor_name << ": ";
-  if(c->dims().size() == 4){
-    ShapeNHWC filterDims(c->dims());
-    const_dims[0] = filterDims.n;
-    const_dims[1] = filterDims.h;
-    const_dims[2] = filterDims.w;
-    const_dims[3] = filterDims.c;
-  }
-  else {
-    int i = 0;
-    for(auto dim: c->dims()) {
-      const_dims[i++] = (int)dim;
-    }
+  int i = 0;
+  for(auto dim: c->dims()) {
+    const_dims[i++] = (int)dim;
   }
   for(auto dim: const_dims)
     std::cout << dim << ", ";
 
   auto size = std::accumulate(begin(const_dims), end(const_dims), 1, std::multiplies<double>());
-  glow::Handle<float> handle = c->getHandle<float>();
+  glow::Handle<T> handle = c->getHandle<T>();
   auto begin = &handle.raw(0);
   std::vector<float> data(begin, begin + handle.actualSize());
   metawarenn::Tensor tensor(tensor_name, const_dims, get_mwnn_type_glow(elem_kind), data);
   graph_->set_graph_initializers(tensor);
   graph_->initializer_names.insert(tensor.get_name());
+}
+
+void MetaWareNNFunction::CreateMWNNNode(const std::string &node_name_,
+                                  const std::string &node_op_type_,
+                                  const std::vector<::metawarenn::Attribute> &node_attributes_,
+                                  const std::vector<std::string> &node_inputs_,
+                                  const std::vector<std::string> &node_outputs_) {
+  ::metawarenn::Node m_node(node_name_, node_op_type_, node_attributes_, node_inputs_, node_outputs_);
+  graph_->set_graph_nodes(m_node);
+
+  std::cout << "\n ================================Node=============================\n";
+  std::cout << "\n Name : " << node_name_;
+  std::cout << "\n Type : " << node_op_type_;
+  for (auto nip: node_inputs_)
+    std::cout << "\n Inputs : " << nip;
+  for (auto nop: node_outputs_)
+    std::cout << "\n Outputs : " << nop;
+}
+
+void MetaWareNNFunction::CreateMWNNQuantParams(NodeValue c, std::string tensor_name) {
+  std::string scale_name = tensor_name + std::string("_scale");
+  std::vector<float> tensor_vec_scale = {c.getScale()};
+  ::metawarenn::Tensor scale_tensor(scale_name, std::vector<int>({tensor_vec_scale.size()}),
+                            ::metawarenn::ElementType::element_type::float_, tensor_vec_scale);
+  graph_->set_graph_initializers(scale_tensor);
+  graph_->initializer_names.insert(scale_name);
+
+  std::string zp_name = tensor_name + std::string("_zero_point");
+  std::vector<float> tensor_vec_zp = {(float)c.getOffset()};
+  ElementType::element_type type;
+  if(c.getElementType() == ElemKind::FloatTy)
+    type = ElementType::element_type::uint8_;
+  else
+    type = get_mwnn_type_glow(c.getElementType());
+  ::metawarenn::Tensor zp_tensor(zp_name, std::vector<int>({tensor_vec_zp.size()}),
+                            type, tensor_vec_zp);
+  graph_->set_graph_initializers(zp_tensor);
+  graph_->initializer_names.insert(zp_name);
 }
 
 MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function *F)
@@ -129,15 +158,94 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
     std::set<std::string> ignored_transpose_nodes;
     int transpose_cnt = 0;
     std::set<std::string> node_inputs_map;
+    std::map<std::string, std::string> quant_ip_mapper;
+    std::map<std::string, std::string> quant_op_mapper;
+    std::vector<std::string> node_inputs;
+    std::vector<std::string> node_outputs;
+    std::vector<::metawarenn::Attribute> node_attributes;
     int node_index = 0;
+    // Graph input and output handling
+    auto remove_transpose = false;
+    auto quantize_encounter = false;
+    for (auto &V : F->getParent()->getPlaceholders()) {
+      if (!usedInFunction(V, F)) {
+        continue;
+      }
+      auto glow_dims = V->getType()->dims();
+      auto data_type = V->getType()->getElementType();
+      int size = glow_dims.size();
+      std::vector<int> dims(size);
+      int i = 0;
+      for(auto dim: glow_dims)
+        dims[i++] = (int(dim));
+      // Input dims from NHWC to HCHW
+      if(size == 4) {
+        if(glow_dims[2] == glow_dims[3])
+          remove_transpose = true; // Input already in NCHW, enable the first transpose removal
+        else {
+          dims[1] = int(glow_dims[3]);
+          dims[3] = int(glow_dims[1]);
+          dims[2] = int(glow_dims[2]);
+          dims[0] = int(glow_dims[0]);
+        }
+      }
+      if(V->getName().equals(F->findPlaceholders().front()->getName())) {
+        std::string input_name = V->getName();
+        graph_->set_graph_ip_names(input_name);
+        //Fills Graph Input Tensor Details - Name, Dims
+        Tensor ip_tensor(input_name, get_mwnn_type_glow(data_type), dims);
+        graph_->set_graph_ip_tensor(ip_tensor);
+        if(V->getElementType() == ElemKind::Int8QTy || V->getElementType() == ElemKind::UInt8QTy) {
+          quantize_encounter = true;
+          // Fill Scale, Zero Point initializer for graph input node
+          CreateMWNNQuantParams(V->getNthResult(0), input_name);
+          node_inputs.clear(); node_outputs.clear();
+          std::string node_op_type = "DequantizeLinear";
+          auto dequant_node_name = node_op_type + "_" + input_name;
+          node_inputs.push_back(input_name);
+          node_inputs.push_back(input_name + "_scale");
+          node_inputs.push_back(input_name + "_zero_point");
+          node_outputs.push_back(dequant_node_name);
+          CreateMWNNNode(dequant_node_name, node_op_type, node_attributes, node_inputs, node_outputs);
+          quant_ip_mapper[input_name] = node_outputs[0];
+        }
+      }
+      else if (auto *save = getOutputSave(F, V)) {
+        std::string output_name = save->getInput().getNode()->getName();
+        if(quantize_encounter) {
+          // Fill Scale, Zero Point initializer for graph output node
+          CreateMWNNQuantParams(save->getInput(), output_name);
+          node_inputs.clear(); node_outputs.clear();
+          std::string node_op_type = "QuantizeLinear";
+          auto quant_node_name = node_op_type + "_" + output_name;
+          node_inputs.push_back(output_name);
+          node_inputs.push_back(output_name + std::string("_scale"));
+          node_inputs.push_back(output_name + std::string("_zero_point"));
+          node_outputs.push_back(quant_node_name);
+          CreateMWNNNode(quant_node_name, node_op_type, node_attributes, node_inputs, node_outputs);
+          quant_op_mapper[output_name] = node_outputs[0];
+
+          graph_->set_graph_op_names(node_outputs[0]);
+          //Fills Graph Output Tensor Details - Name, Dims
+          ::metawarenn::Tensor m_op_tensor(node_outputs[0], ElementType::element_type::uint8_, dims);
+          graph_->set_graph_op_tensor(m_op_tensor);
+        }
+        else {
+        graph_->set_graph_op_names(output_name);
+        //Fills Graph Output Tensor Details - Name, Dims
+        Tensor op_tensor(output_name, get_mwnn_type_glow(data_type), dims);
+        graph_->set_graph_op_tensor(op_tensor);
+        }
+      }
+    }
     for (auto *node : node_list) {
         std::cout << "\nnode_index: " << node_index;
         LOG(INFO) << "==============================================================================================================";
         std::string node_name;
         std::string node_op_type;
-        std::vector<std::string> node_inputs;
-        std::vector<std::string> node_outputs;
-        std::vector<::metawarenn::Attribute> node_attributes;
+        node_inputs.clear();
+        node_outputs.clear();
+        node_attributes.clear();
         node_name = std::string(node->getName());
         auto kind = node->getKindName();
         LOG(INFO) << "Node Name: " << node_name << "\tOp type: " << node->getKindName();
@@ -145,28 +253,88 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
         non_op_types = {"Constant", "Placeholder", "Save"};
         if((std::count(non_op_types.begin(), non_op_types.end(), kind)) < 1)
         {
+        // Node Inputs handling
         for(int i = 0; i < node->getNumInputs(); i++) {
           auto input = node->getNthInput(i);
-          auto name = input.getNode()->getName();
-          node_inputs.emplace_back(name);
+          std::string name = input.getNode()->getName();
           if (Constant *c = llvm::dyn_cast<Constant>(input.getNode())) {
-            std::vector<int> const_dims(c->dims().size());
-            int i = 0;
-            for(auto dim: c->dims())
-              const_dims[i++] = dim;
-            auto handle = c->getHandle<float>();
-            auto begin = &handle.raw(0);
-            std::vector<float> data(begin, begin + handle.actualSize());
-            metawarenn::Tensor const_tensor(name, const_dims, ElementType::element_type::float_, data);
-            graph_->set_graph_initializers(const_tensor);
-            graph_->initializer_names.insert(const_tensor.get_name());
+            switch(c->getElementType()) {
+              case ElemKind::FloatTy: {
+                read_tensor<float>(c, name, c->getElementType());
+                break;
+              }
+              case ElemKind::Int8QTy:
+              case ElemKind::UInt8QTy:
+              case ElemKind::Int32QTy: {
+                if (c->getElementType() == ElemKind::Int8QTy)
+                  read_tensor<int8_t>(c, name, c->getElementType());
+                else if (c->getElementType() == ElemKind::UInt8QTy)
+                  read_tensor<uint8_t>(c, name, c->getElementType());
+                else if (c->getElementType() == ElemKind::Int32QTy)
+                  read_tensor<int32_t>(c, name, c->getElementType());
+                node_op_type = "DequantizeLinear";
+                auto dequant_node_name = node_op_type + "_" + name;
+                node_inputs.clear(); node_outputs.clear();
+                CreateMWNNQuantParams(input, name);
+                node_inputs.emplace_back(name);
+                node_inputs.emplace_back(name + "_scale");
+                node_inputs.emplace_back(name + "_zero_point");
+                node_outputs.push_back(dequant_node_name);
+                // Create DequantizeLinear node for initializers
+                CreateMWNNNode(dequant_node_name, node_op_type, node_attributes, node_inputs, node_outputs);
+                quant_ip_mapper[name] = node_outputs[0];
+                break;
+              }
+            }
           }
           std::cout << "\n input name: " << (std::string)name;
+        }
+        node_inputs.clear(); node_outputs.clear();
+        // Node Outputs handling
+        for (int i = 0; i < node->getNumResults(); ++i) {
+          auto output = node->getNthResult(i);
+          std::string name = output.getNode()->getName();
+          auto itr = quant_op_mapper.find(output.getNode()->getName());
+          // Skip QDQ nodes for last op node and dequantize node
+          if(quantize_encounter && itr == quant_op_mapper.end() && node->getKindName() != "Dequantize") {
+            CreateMWNNQuantParams(output, name);
+            node_inputs.clear(); node_outputs.clear();
+            node_op_type = "QuantizeLinear";
+            auto quant_node_name = node_op_type + "_" + name;
+            node_inputs.push_back(name);
+            node_inputs.push_back(name + std::string("_scale"));
+            node_inputs.push_back(name + std::string("_zero_point"));
+            node_outputs.push_back(quant_node_name);
+            // Create QuantizeLinear Op with quant params
+            CreateMWNNNode(quant_node_name, node_op_type, node_attributes, node_inputs, node_outputs);
+            // Check if next node is dequantize and avoid adding dequantize for that node
+            if(node_list[node_index+1]->getKindName() != "Dequantize") {
+            node_op_type = "DequantizeLinear";
+            auto dequant_node_name = node_op_type + "_" + name;
+            node_inputs.clear();
+            node_inputs.push_back(node_outputs[0]);
+            node_inputs.push_back(name + std::string("_scale"));
+            node_inputs.push_back(name + std::string("_zero_point"));
+            node_outputs.clear();
+            node_outputs.push_back(dequant_node_name);
+            // Create DequantizeLinear Op with quant params
+            CreateMWNNNode(dequant_node_name, node_op_type, node_attributes, node_inputs, node_outputs);
+            }
+            quant_ip_mapper[name] = node_outputs[0];
+          }
+        }
+        node_inputs.clear(); node_outputs.clear();
+        for(int i = 0; i < node->getNumInputs(); i++) {
+          auto input = node->getNthInput(i);
+          auto itr = quant_ip_mapper.find(input.getNode()->getName());
+          if(itr != quant_ip_mapper.end())
+            node_inputs.emplace_back(itr->second);
+          else
+            node_inputs.emplace_back(input.getNode()->getName());
         }
         for(int i = 0; i < node->getNumResults(); i++) {
           auto output = node->getNthResult(i);
           node_outputs.emplace_back(output.getNode()->getName());
-          std::cout << "\n output name: " << (std::string)output.getNode()->getName();
         }
         switch (node->getKind())
         {
@@ -784,6 +952,26 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
           node_attributes.emplace_back(attr_stride);
           break;
         }
+        case Kinded::Kind::QuantizeNodeKind:
+        {
+          node_op_type = "QuantizeLinear";
+          auto *quant_node = llvm::cast<QuantizeNode>(node);
+          std::string name = quant_node->getNthResult(0).getNode()->getName();
+          CreateMWNNQuantParams(quant_node->getNthResult(0), name);
+          node_inputs.emplace_back(name + "_scale");
+          node_inputs.emplace_back(name + "_zero_point");
+          break;
+        }
+        case Kinded::Kind::DequantizeNodeKind:
+        {
+          node_op_type = "DequantizeLinear";
+          auto *dequant_node = llvm::cast<DequantizeNode>(node);
+          std::string name = dequant_node->getNthInput(0).getNode()->getName();
+          CreateMWNNQuantParams(dequant_node->getNthResult(0), name);
+          node_inputs.emplace_back(name + "_scale");
+          node_inputs.emplace_back(name + "_zero_point");
+          break;
+        }
         default:
           break;
         }
@@ -803,44 +991,6 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
         }
       }
       node_index++;
-    }
-    // Graph input and output handling
-    auto &nodes = F->getNodes();
-    auto remove_transpose = false;
-    for (auto &V : F->getParent()->getPlaceholders()) {
-      if (!usedInFunction(V, F)) {
-        continue;
-      }
-      auto glow_dims = V->getType()->dims();
-      auto data_type = V->getType()->getElementType();
-      int size = glow_dims.size();
-      std::vector<int> dims(size);
-      int i = 0;
-      for(auto dim: glow_dims)
-        dims[i++] = (int(dim));
-      // Input dims from NHWC to HCHW
-      if(size == 4) {
-        if(glow_dims[2] == glow_dims[3])
-          remove_transpose = true; // Input already in NCHW, enable the first transpose removal
-        else {
-          dims[1] = int(glow_dims[3]);
-          dims[3] = int(glow_dims[1]);
-          dims[2] = int(glow_dims[2]);
-          dims[0] = int(glow_dims[0]);
-        }
-      }
-      if (getOutputSave(F, V)) {
-        graph_->set_graph_op_names(global_output_name);
-        //Fills Graph Output Tensor Details - Name, Dims
-        Tensor op_tensor(global_output_name, get_mwnn_type_glow(data_type), dims);
-        graph_->set_graph_op_tensor(op_tensor);
-      }
-      else if(V->getName().equals(F->findPlaceholders().front()->getName())) {
-        graph_->set_graph_ip_names(global_input_name);
-        //Fills Graph Input Tensor Details - Name, Dims
-        Tensor ip_tensor(global_input_name, get_mwnn_type_glow(data_type), dims);
-        graph_->set_graph_ip_tensor(ip_tensor);
-      }
     }
     optimizer::PassManager manager;
     if(CHW_TO_HWC)

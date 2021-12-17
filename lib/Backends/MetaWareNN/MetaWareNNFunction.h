@@ -38,7 +38,14 @@ public:
   const PlaceholderList &getOutputs() const { return outputs_; }
   ///@}
 
+  template<class T>
   void read_tensor(glow::Constant *c, std::string tensor_name, ElemKind elem_kind);
+  void CreateMWNNQuantParams(NodeValue c, std::string tensor_name);
+  void CreateMWNNNode(const std::string &node_name_,
+                        const std::string &node_op_type_,
+                        const std::vector<::metawarenn::Attribute> &node_attributes_,
+                        const std::vector<std::string> &node_inputs_,
+                        const std::vector<std::string> &node_outputs_);
   static ElementType::element_type get_mwnn_type_glow(ElemKind glow_type) {
       switch (glow_type) {
           case ElemKind::BoolTy:

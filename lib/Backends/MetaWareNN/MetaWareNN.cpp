@@ -45,6 +45,8 @@ bool MetaWareNNBackend::isOpSupported(const NodeInfo &NI) const
         case Kinded::Kind::MatMulNodeKind:
         case Kinded::Kind::LeakyReluNodeKind:
         case Kinded::Kind::MulNodeKind:
+        case Kinded::Kind::QuantizeNodeKind:
+        case Kinded::Kind::DequantizeNodeKind:
             return true;
         default:
             return false;
