@@ -47,6 +47,7 @@ bool MetaWareNNBackend::isOpSupported(const NodeInfo &NI) const
         case Kinded::Kind::MulNodeKind:
         case Kinded::Kind::QuantizeNodeKind:
         case Kinded::Kind::DequantizeNodeKind:
+        case Kinded::Kind::RescaleQuantizedNodeKind:
             return true;
         default:
             return false;

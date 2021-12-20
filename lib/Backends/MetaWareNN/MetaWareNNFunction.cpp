@@ -137,6 +137,33 @@ void MetaWareNNFunction::CreateMWNNQuantParams(NodeValue c, std::string tensor_n
   graph_->initializer_names.insert(zp_name);
 }
 
+void MetaWareNNFunction::CreateQDQNodes(std::string ip_name, std::string op_name,
+                      std::string node_name) {
+  std::string quant_node_op_type = "QuantizeLinear";
+  std::string quant_node_name = quant_node_op_type + "_" + ip_name;
+  std::vector<std::string> quant_node_inputs;
+  std::vector<std::string> quant_node_outputs;
+  std::vector<::metawarenn::Attribute> quant_node_attributes;
+  quant_node_inputs.push_back(ip_name);
+  quant_node_inputs.push_back(node_name + "_scale");//Output Scale
+  quant_node_inputs.push_back(node_name + "_zero_point");//Output ZeroPoint
+  quant_node_outputs.push_back(quant_node_name);
+  // Create QuantizeLinear node with quantization params
+  CreateMWNNNode(quant_node_name, quant_node_op_type, quant_node_attributes, quant_node_inputs, quant_node_outputs);
+
+  std::string dequant_node_op_type = "DequantizeLinear";
+  std::string dequant_node_name = dequant_node_op_type + "_" + ip_name;
+  std::vector<std::string> dequant_node_inputs;
+  std::vector<std::string> dequant_node_outputs;
+  std::vector<::metawarenn::Attribute> dequant_node_attributes;
+  dequant_node_inputs.push_back(quant_node_outputs[0]);
+  dequant_node_inputs.push_back(node_name + "_scale");//Output Scale
+  dequant_node_inputs.push_back(node_name + "_zero_point");//Output ZeroPoint
+  dequant_node_outputs.push_back(op_name);
+  // Create DequantizeLinear node with quantization params
+  CreateMWNNNode(dequant_node_name, dequant_node_op_type, dequant_node_attributes, dequant_node_inputs, dequant_node_outputs);
+}
+
 MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function *F)
     : CompiledFunction(std::move(bundle)) {
     findIOPlaceholders(F);
@@ -255,6 +282,8 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
         {
         // Node Inputs handling
         for(int i = 0; i < node->getNumInputs(); i++) {
+          if((kind == "SoftMax" && i >= 1) || kind == "RescaleQuantized")
+            continue;
           auto input = node->getNthInput(i);
           std::string name = input.getNode()->getName();
           if (Constant *c = llvm::dyn_cast<Constant>(input.getNode())) {
@@ -292,35 +321,18 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
         node_inputs.clear(); node_outputs.clear();
         // Node Outputs handling
         for (int i = 0; i < node->getNumResults(); ++i) {
+          if((kind == "MaxPool" && i >= 1) || kind == "RescaleQuantized")
+            continue;
           auto output = node->getNthResult(i);
           std::string name = output.getNode()->getName();
           auto itr = quant_op_mapper.find(output.getNode()->getName());
           // Skip QDQ nodes for last op node and dequantize node
           if(quantize_encounter && itr == quant_op_mapper.end() && node->getKindName() != "Dequantize") {
-            CreateMWNNQuantParams(output, name);
-            node_inputs.clear(); node_outputs.clear();
-            node_op_type = "QuantizeLinear";
-            auto quant_node_name = node_op_type + "_" + name;
-            node_inputs.push_back(name);
-            node_inputs.push_back(name + std::string("_scale"));
-            node_inputs.push_back(name + std::string("_zero_point"));
-            node_outputs.push_back(quant_node_name);
-            // Create QuantizeLinear Op with quant params
-            CreateMWNNNode(quant_node_name, node_op_type, node_attributes, node_inputs, node_outputs);
-            // Check if next node is dequantize and avoid adding dequantize for that node
-            if(node_list[node_index+1]->getKindName() != "Dequantize") {
             node_op_type = "DequantizeLinear";
             auto dequant_node_name = node_op_type + "_" + name;
-            node_inputs.clear();
-            node_inputs.push_back(node_outputs[0]);
-            node_inputs.push_back(name + std::string("_scale"));
-            node_inputs.push_back(name + std::string("_zero_point"));
-            node_outputs.clear();
-            node_outputs.push_back(dequant_node_name);
-            // Create DequantizeLinear Op with quant params
-            CreateMWNNNode(dequant_node_name, node_op_type, node_attributes, node_inputs, node_outputs);
-            }
-            quant_ip_mapper[name] = node_outputs[0];
+            CreateMWNNQuantParams(output, name);
+            CreateQDQNodes(name, dequant_node_name, name);
+            quant_ip_mapper[name] = dequant_node_name;
           }
         }
         node_inputs.clear(); node_outputs.clear();
@@ -333,6 +345,8 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
             node_inputs.emplace_back(input.getNode()->getName());
         }
         for(int i = 0; i < node->getNumResults(); i++) {
+          if((kind == "MaxPool" && i >= 1))
+            continue;
           auto output = node->getNthResult(i);
           node_outputs.emplace_back(output.getNode()->getName());
         }
@@ -970,6 +984,21 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
           CreateMWNNQuantParams(dequant_node->getNthResult(0), name);
           node_inputs.emplace_back(name + "_scale");
           node_inputs.emplace_back(name + "_zero_point");
+          break;
+        }
+        case Kinded::Kind::RescaleQuantizedNodeKind:
+        {
+          auto *rq_node = llvm::cast<RescaleQuantizedNode>(node);
+          auto input = rq_node->getNthInput(0);
+          std::string name = rq_node->getName();
+
+          auto itr = quant_op_mapper.find(name);
+          auto rq_output = node_outputs[0];
+          if(quantize_encounter && itr == quant_op_mapper.end()) {
+            CreateMWNNQuantParams(input, name);
+            CreateQDQNodes(node_inputs[0], node_outputs[0], node_name);
+          }
+          continue;
           break;
         }
         default:

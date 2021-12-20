@@ -46,6 +46,7 @@ public:
                         const std::vector<::metawarenn::Attribute> &node_attributes_,
                         const std::vector<std::string> &node_inputs_,
                         const std::vector<std::string> &node_outputs_);
+  void CreateQDQNodes(std::string ip_name, std::string op_name, std::string node_name);
   static ElementType::element_type get_mwnn_type_glow(ElemKind glow_type) {
       switch (glow_type) {
           case ElemKind::BoolTy:
