@@ -141,18 +141,34 @@
 * Run the ONNX models from model zoo in metawarenn backend with below command
     *   `python inference_regression.py`
 
-## To generate ONNX Proto and verify it with original ONNX models
+## To generate ONNX Proto for multiple ONNX models and verify it with original ONNX models
 * `cd /path/to/glow/mwnn_inference`
 * `source env.sh`
 * Download the models from ONNX model zoo by running the below shell script.
 (This script will create a folder `onnx_models` inside glow/ directory and download models into it.)
     *   `sh download_ONNX_models.sh`
 * Run the ONNX models from model zoo in metawarenn backend with below command
-    *   `python validate_models.py`
+    *   `python validate_onnx_models.py` - Dumps the generated ONNX protos & validation_result.txt(contains output comparison from generated and original ONNX model) in `mwnn_inference/op_onnx_models` directory.
 NOTE: Install the following pip packages for verification of ONNX models
 * `pip install onnx` current version - 1.10.2
 * `pip install onnxruntime` current version - 1.9.0
 * `pip install Pillow` current version - 8.4.0
+
+## To generate ONNX Proto for multiple TFLite quantized models and verify it with original TFlite quantized models
+* `cd /path/to/glow/mwnn_inference`
+* `source env.sh`
+* Download the Quantized TFLite models from zoo by running the below shell script.
+(This script will create a folder `tflite_quantized_models` inside glow/ directory and download models into it.)
+    *   `sh download_quantized_tflite_models.sh`
+* Run the Quantized TFLite models from model zoo in metawarenn backend with below command
+    *   `python validate_quantized_tflite_models.py` - Dumps the generated ONNX protos & validation_result.txt(contains output comparison from generated and original TFLite models) in `mwnn_inference/op_tflite_quantized_models` directory.
+NOTE: Install the following pip packages for verification of ONNX models
+* `pip install onnx` current version - 1.10.2
+* `pip install onnxruntime` current version - 1.9.0
+* `pip install Pillow` current version - 8.4.0
+* `pip install tflite==2.3.0`
+* `pip install decorator` current version - 5.1.0
+* `pip install scipy` current version - 1.5.4
 
 ### To Run Standalone Inference using MetaWareNN Backend (deprecated)
 * `cd /path/to/glow/lib/Backends/MetaWareNN/Inference`

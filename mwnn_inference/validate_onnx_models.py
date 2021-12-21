@@ -10,7 +10,7 @@ glow_path = os.environ['FRAMEWORK_PATH']
 model_dir = glow_path + "/onnx_models/"
 f = open(glow_path + "mwnn_inference/models.txt", "r")
 
-output_folder = glow_path + '/mwnn_inference/conversion_output/'
+output_folder = glow_path + '/mwnn_inference/op_onnx_models/'
 
 if os.path.exists(output_folder):
     shutil.rmtree(output_folder)
@@ -52,7 +52,7 @@ for line in f:
   else:
     subprocess.run([glow_path+ "/build_Release/bin/image-classifier", image_path, "-m", model_path, "-model-input-name", input_node.name, "-cpu-memory", "100000", "-backend=MetaWareNN"])
 
-  gen_model_name = glow_path + "/mwnn_inference/conversion_output/model_" + model_name
+  gen_model_name = glow_path + "/mwnn_inference/op_onnx_models/model_" + model_name
   os.rename(glow_path + "mwnn_inference/model.onnx", gen_model_name)
 
   session = onnxruntime.InferenceSession(model_path, None)
