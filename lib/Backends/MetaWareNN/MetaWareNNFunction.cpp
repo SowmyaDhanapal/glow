@@ -361,15 +361,15 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
             auto pads = conv_node->getPads();
             auto group = conv_node->getGroup();
             auto kernel_shape = conv_node->getKernels();
-            metawarenn::Attribute attr_dilate("dilations", std::vector<int>{int(dilations[0]), int(dilations[1])});
+            metawarenn::Attribute attr_dilate("dilations", std::vector<int64_t>{int64_t(dilations[0]), int64_t(dilations[1])});
             node_attributes.emplace_back(attr_dilate);
-            metawarenn::Attribute attr_group("group", (int)group);
+            metawarenn::Attribute attr_group("group", (int64_t)group);
             node_attributes.emplace_back(attr_group);
-            metawarenn::Attribute attr_kernel_shape("kernel_shape", std::vector<int>{(int)kernel_shape[0], (int)kernel_shape[1]});
+            metawarenn::Attribute attr_kernel_shape("kernel_shape", std::vector<int64_t>{(int64_t)kernel_shape[0], (int64_t)kernel_shape[1]});
             node_attributes.emplace_back(attr_kernel_shape);
-            metawarenn::Attribute attr_pad("pads", std::vector<int>{int(pads[0]), int(pads[1]), int(pads[2]), int(pads[3])});
+            metawarenn::Attribute attr_pad("pads", std::vector<int64_t>{int64_t(pads[0]), int64_t(pads[1]), int64_t(pads[2]), int64_t(pads[3])});
             node_attributes.emplace_back(attr_pad);
-            metawarenn::Attribute attr_stride("strides", std::vector<int>{int(strides[0]), int(strides[1])});
+            metawarenn::Attribute attr_stride("strides", std::vector<int64_t>{int64_t(strides[0]), int64_t(strides[1])});
             node_attributes.emplace_back(attr_stride);
             break;
           }
@@ -390,13 +390,13 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
           else {
             node_op_type = "AveragePool";
             auto count_include_pad = avgpool_node->getCountIncludePads();
-            metawarenn::Attribute attr_count_include_pad("count_include_pad", (int)count_include_pad);
+            metawarenn::Attribute attr_count_include_pad("count_include_pad", (int64_t)count_include_pad);
             node_attributes.emplace_back(attr_count_include_pad);
-            metawarenn::Attribute attr_kernel_shape("kernel_shape", std::vector<int>{int(kernels[0]), int(kernels[1])});
+            metawarenn::Attribute attr_kernel_shape("kernel_shape", std::vector<int64_t>{int64_t(kernels[0]), int64_t(kernels[1])});
             node_attributes.emplace_back(attr_kernel_shape);
-            metawarenn::Attribute attr_stride("strides", std::vector<int>{int(strides[0]), int(strides[1])});
+            metawarenn::Attribute attr_stride("strides", std::vector<int64_t>{int64_t(strides[0]), int64_t(strides[1])});
             node_attributes.emplace_back(attr_stride);
-            metawarenn::Attribute attr_pads("pads", std::vector<int>{int(pads[0]), int(pads[1]), int(pads[2]), int(pads[3])});
+            metawarenn::Attribute attr_pads("pads", std::vector<int64_t>{int64_t(pads[0]), int64_t(pads[1]), int64_t(pads[2]), int64_t(pads[3])});
             node_attributes.emplace_back(attr_pads);
           }
           break;
@@ -411,10 +411,10 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
           node_op_type = "Transpose";
           auto *transpose_node = llvm::cast<TransposeNode>(node);
           auto shuffle = transpose_node->getShuffle();
-          std::vector<int> perm(shuffle.size());
+          std::vector<int64_t> perm(shuffle.size());
           int i = 0;
           for(auto s: shuffle)
-            perm[i++] = (int)s;
+            perm[i++] = (int64_t)s;
           metawarenn::Attribute attr_pads("perm", perm);
           node_attributes.emplace_back(attr_pads);
           auto input = transpose_node->getInput().getNode();
@@ -455,7 +455,7 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
           node_attributes.emplace_back(attr_alpha);
           metawarenn::Attribute attr_beta("beta", float(lrn_node->getBeta()));
           node_attributes.emplace_back(attr_beta);
-          metawarenn::Attribute attr_size("size", int(2 * lrn_node->getHalfWindowSize() + 1));
+          metawarenn::Attribute attr_size("size", int64_t(2 * lrn_node->getHalfWindowSize() + 1));
           node_attributes.emplace_back(attr_size);
           metawarenn::Attribute attr_bias("bias", float(lrn_node->getK()));
           node_attributes.emplace_back(attr_bias);
@@ -468,13 +468,13 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
           auto kernels = maxpool_node->getKernels();
           auto strides = maxpool_node->getStrides();
           auto pads = maxpool_node->getPads();
-          metawarenn::Attribute attr_dilations("dilations", std::vector<int>{1,1});
+          metawarenn::Attribute attr_dilations("dilations", std::vector<int64_t>{1,1});
           node_attributes.emplace_back(attr_dilations);
-          metawarenn::Attribute attr_kernel_shape("kernel_shape", std::vector<int>{int(kernels[0]), int(kernels[1])});
+          metawarenn::Attribute attr_kernel_shape("kernel_shape", std::vector<int64_t>{int64_t(kernels[0]), int64_t(kernels[1])});
           node_attributes.emplace_back(attr_kernel_shape);
-          metawarenn::Attribute attr_pad("pads", std::vector<int>{int(pads[0]), int(pads[1]), int(pads[2]), int(pads[3])});
+          metawarenn::Attribute attr_pad("pads", std::vector<int64_t>{int64_t(pads[0]), int64_t(pads[1]), int64_t(pads[2]), int64_t(pads[3])});
           node_attributes.emplace_back(attr_pad);
-          metawarenn::Attribute attr_stride("strides", std::vector<int>{int(strides[0]), int(strides[1])});
+          metawarenn::Attribute attr_stride("strides", std::vector<int64_t>{int64_t(strides[0]), int64_t(strides[1])});
           node_attributes.emplace_back(attr_stride);
           // Remove the additional(second) output name from GLOW Function. Consider only one output for MaxPool Node.
           if(node_outputs.size() > 1)
@@ -489,9 +489,9 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
           node_attributes.emplace_back(attr_alpha);
           metawarenn::Attribute attr_beta("beta", float(gemm_node->getBeta()));
           node_attributes.emplace_back(attr_beta);
-          metawarenn::Attribute attr_transA("transA", int(gemm_node->getTransposeA()));
+          metawarenn::Attribute attr_transA("transA", int64_t(gemm_node->getTransposeA()));
           node_attributes.emplace_back(attr_transA);
-          metawarenn::Attribute attr_transB("transB", int(gemm_node->getTransposeB()));
+          metawarenn::Attribute attr_transB("transB", int64_t(gemm_node->getTransposeB()));
           node_attributes.emplace_back(attr_transB);
           break;
         }
@@ -499,7 +499,7 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
         {
           node_op_type = "Concat";
           auto *concat_node = llvm::cast<ConcatNode>(node);
-          metawarenn::Attribute attr_axis("axis", (int)1);//int(inputs[0].dims().size())});
+          metawarenn::Attribute attr_axis("axis", (int64_t)1);//int(inputs[0].dims().size())});
           node_attributes.emplace_back(attr_axis);
           break;
         }
@@ -594,8 +594,8 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
         {
           node_op_type = "ArgMax";
           auto *argmax_node = llvm::cast<ArgMaxNode>(node);
-          metawarenn::Attribute attr_axis("axis", int(argmax_node->getAxis()));
-          metawarenn::Attribute attr_keep_dims("keepDims", int(argmax_node->getKeepDims()));
+          metawarenn::Attribute attr_axis("axis", int64_t(argmax_node->getAxis()));
+          metawarenn::Attribute attr_keep_dims("keepDims", int64_t(argmax_node->getKeepDims()));
           node_attributes.emplace_back(attr_axis);
           break;
         }
@@ -603,9 +603,9 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
         {
           node_op_type = "ArgMin";
           auto *argmin_node = llvm::cast<ArgMinNode>(node);
-          metawarenn::Attribute attr_axis("axis", int(argmin_node->getAxis()));
+          metawarenn::Attribute attr_axis("axis", int64_t(argmin_node->getAxis()));
           node_attributes.emplace_back(attr_axis);
-          metawarenn::Attribute attr_keep_dims("keepDims", int(argmin_node->getKeepDims()));
+          metawarenn::Attribute attr_keep_dims("keepDims", int64_t(argmin_node->getKeepDims()));
           node_attributes.emplace_back(attr_keep_dims);
           break;
         }
@@ -642,7 +642,7 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
           node_op_type = "Gather";
           auto *gather_node = llvm::cast<GatherNode>(node);
           auto batch_dims = gather_node->getBatchDims();
-          metawarenn::Attribute attr_axis("axis", (int)batch_dims);
+          metawarenn::Attribute attr_axis("axis", (int64_t)batch_dims);
           node_attributes.emplace_back(attr_axis);
           break;
         }
@@ -695,7 +695,7 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
           node_inputs.emplace_back(pads_tensor.get_name());
           metawarenn::Tensor value_tensor(node_name + "_value", std::vector<int>{1}, ElementType::element_type::float_, std::vector<float>{(float)pad_node->getValue()});
           node_inputs.emplace_back(value_tensor.get_name());
-          metawarenn::Attribute attr_mode("mode", int(pad_node->getMode()));
+          metawarenn::Attribute attr_mode("mode", int64_t(pad_node->getMode()));
           node_attributes.emplace_back(attr_mode);
           break;
         }
@@ -736,7 +736,7 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
         {
           node_op_type = "NonMaxSuppression";
           auto *nms_node = llvm::cast<NonMaxSuppressionNode>(node);
-          metawarenn::Attribute attr_cpb("center_point_box", (int)nms_node->getCenterPointBox());
+          metawarenn::Attribute attr_cpb("center_point_box", (int64_t)nms_node->getCenterPointBox());
           node_attributes.emplace_back(attr_cpb);
           metawarenn::Tensor max_out_box_tensor(node_name + "_max_out_box", std::vector<int>{1}, ElementType::element_type::float_, std::vector<float>{float(nms_node->getMaxOutputBoxesPerClass())});
           graph_->set_graph_initializers(max_out_box_tensor);
@@ -762,7 +762,7 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
           node_op_type = "ReduceMean";
           auto *reduce_mean_node = llvm::cast<BatchedReduceMeanNode>(node);
           auto axes = reduce_mean_node->getAxes();
-          std::vector<int> axes_vec(axes.size());
+          std::vector<int64_t> axes_vec(axes.size());
           int i = 0;
           for(auto ax: axes_vec)
             axes_vec[i++] = axes[i];
@@ -775,7 +775,7 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
           node_op_type = "ReduceMin";
           auto *reduce_min_node = llvm::cast<BatchedReduceMinNode>(node);
           auto axes = reduce_min_node->getAxes();
-          std::vector<int> axes_vec(axes.size());
+          std::vector<int64_t> axes_vec(axes.size());
           int i = 0;
           for(auto ax: axes_vec)
             axes_vec[i++] = axes[i];
@@ -788,7 +788,7 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
           node_op_type = "ReduceMax";
           auto *reduce_max_node = llvm::cast<BatchedReduceMaxNode>(node);
           auto axes = reduce_max_node->getAxes();
-          std::vector<int> axes_vec(axes.size());
+          std::vector<int64_t> axes_vec(axes.size());
           int i = 0;
           for(auto ax: axes_vec)
             axes_vec[i++] = axes[i];
@@ -801,7 +801,7 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
         {
           node_op_type = "ReduceSum";
           auto *reduce_add_node = llvm::cast<BatchedReduceAddNode>(node);
-          metawarenn::Attribute attr_axes("axes", (int)reduce_add_node->getAxis());
+          metawarenn::Attribute attr_axes("axes", (int64_t)reduce_add_node->getAxis());
           node_attributes.emplace_back(attr_axes);
           break;
         }
@@ -861,11 +861,11 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
               break;
             }
           }
-          metawarenn::Attribute attr_out_h("output_height", (int)roi_align_node->getOutputHeight());
+          metawarenn::Attribute attr_out_h("output_height", (int64_t)roi_align_node->getOutputHeight());
           node_attributes.emplace_back(attr_out_h);
-          metawarenn::Attribute attr_out_w("output_width", (int)roi_align_node->getOutputWidth());
+          metawarenn::Attribute attr_out_w("output_width", (int64_t)roi_align_node->getOutputWidth());
           node_attributes.emplace_back(attr_out_w);
-          metawarenn::Attribute attr_s_ratio("sampling_ratio", (int)roi_align_node->getSamplingRatio());
+          metawarenn::Attribute attr_s_ratio("sampling_ratio", (int64_t)roi_align_node->getSamplingRatio());
           node_attributes.emplace_back(attr_s_ratio);
           metawarenn::Attribute attr_s_scale("spatial_scale", (float)roi_align_node->getSpatialScale());
           node_attributes.emplace_back(attr_s_scale);
@@ -942,27 +942,27 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
           auto strides = conv_trans_node->getStrides();
           auto pads = conv_trans_node->getPads();
           auto group = conv_trans_node->getGroup();
-          metawarenn::Attribute attr_dilate("dilations", std::vector<int>{int(dilations[0]), int(dilations[1])});
+          metawarenn::Attribute attr_dilate("dilations", std::vector<int64_t>{int64_t(dilations[0]), int64_t(dilations[1])});
           node_attributes.emplace_back(attr_dilate);
-          metawarenn::Attribute attr_group("group", int(group));
+          metawarenn::Attribute attr_group("group", int64_t(group));
           node_attributes.emplace_back(attr_group);
-          metawarenn::Attribute attr_kernel_shape("kernel_shape", std::vector<int>{(int)kernels[0], (int)kernels[1]});
+          metawarenn::Attribute attr_kernel_shape("kernel_shape", std::vector<int64_t>{(int64_t)kernels[0], (int64_t)kernels[1]});
           node_attributes.emplace_back(attr_kernel_shape);
           auto input_dims = conv_trans_node->getInput().dims();
           PaddingTLBR pdim(pads);
           ShapeHW kdim(kernels);
           ShapeHW sdim(strides);
-          int depth = (int)input_dims[0] * (int)group;
-          int outsx = (input_dims[1] - 1) * sdim.height + (kdim.height - 1) * dilations[0] + 1 -
+          int64_t depth = (int64_t)input_dims[0] * (int64_t)group;
+          int64_t outsx = (input_dims[1] - 1) * sdim.height + (kdim.height - 1) * dilations[0] + 1 -
                         pdim.top - pdim.bottom;
-          int outsy = (input_dims[2] - 1) * sdim.width + (kdim.width - 1) * dilations[1] + 1 -
+          int64_t outsy = (input_dims[2] - 1) * sdim.width + (kdim.width - 1) * dilations[1] + 1 -
                         pdim.left - pdim.right;
-          std::vector<int> output_shape = {(int)input_dims[0], outsx, outsy, depth};
+          std::vector<int64_t> output_shape = {(int64_t)input_dims[0], outsx, outsy, depth};
           metawarenn::Attribute attr_output_shape("output_shape", output_shape);
           node_attributes.emplace_back(attr_kernel_shape);
-          metawarenn::Attribute attr_pad("pads", std::vector<int>{int(pads[0]), int(pads[1]), int(pads[2]), int(pads[3])});
+          metawarenn::Attribute attr_pad("pads", std::vector<int64_t>{int64_t(pads[0]), int64_t(pads[1]), int64_t(pads[2]), int64_t(pads[3])});
           node_attributes.emplace_back(attr_pad);
-          metawarenn::Attribute attr_stride("strides", std::vector<int>{int(strides[0]), int(strides[1])});
+          metawarenn::Attribute attr_stride("strides", std::vector<int64_t>{int64_t(strides[0]), int64_t(strides[1])});
           node_attributes.emplace_back(attr_stride);
           break;
         }

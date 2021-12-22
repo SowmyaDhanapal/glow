@@ -8,7 +8,7 @@ import subprocess
 
 glow_path = os.environ['FRAMEWORK_PATH']
 model_dir = glow_path + "/onnx_models/"
-f = open(glow_path + "mwnn_inference/models.txt", "r")
+f = open(glow_path + "/mwnn_inference/models.txt", "r")
 
 output_folder = glow_path + '/mwnn_inference/op_onnx_models/'
 
@@ -30,7 +30,7 @@ for line in f:
   if model_name == "mnist-7.onnx":
     image_path = glow_path + "/tests/images/mnist/0_1009.png"
   elif model_name == "tinyyolov2-7.onnx" or model_name == "yolov2-coco-9.onnx":
-    image_path = glow_path + "mwnn_inference/image/yolov2_416.png"
+    image_path = glow_path + "/mwnn_inference/image/yolov2_416.png"
   else:
     image_path = glow_path + "/tests/images/imagenet/cat_285.png"
 
@@ -53,7 +53,7 @@ for line in f:
     subprocess.run([glow_path+ "/build_Release/bin/image-classifier", image_path, "-m", model_path, "-model-input-name", input_node.name, "-cpu-memory", "100000", "-backend=MetaWareNN"])
 
   gen_model_name = glow_path + "/mwnn_inference/op_onnx_models/model_" + model_name
-  os.rename(glow_path + "mwnn_inference/model.onnx", gen_model_name)
+  os.rename(glow_path + "/mwnn_inference/model.onnx", gen_model_name)
 
   session = onnxruntime.InferenceSession(model_path, None)
   input_dict = {}
