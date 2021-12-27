@@ -38,7 +38,7 @@ public:
   const PlaceholderList &getOutputs() const { return outputs_; }
   ///@}
 
-  template<class T>
+  template<class T1, class T2>
   void read_tensor(glow::Constant *c, std::string tensor_name, ElemKind elem_kind);
   void CreateMWNNQuantParams(NodeValue c, std::string tensor_name);
   void CreateMWNNNode(const std::string &node_name_,

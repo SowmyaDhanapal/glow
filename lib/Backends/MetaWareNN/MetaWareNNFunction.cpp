@@ -79,7 +79,7 @@ void convert_glow_to_onnx(Function *F)
   }
 }
 
-template<class T>
+template<class T1, class T2>
 void MetaWareNNFunction::read_tensor(glow::Constant *c, std::string tensor_name, ElemKind elem_kind) {
   std::vector<int> const_dims(c->dims().size());
   std::cout << "\n initializer - " << tensor_name << ": ";
@@ -91,9 +91,9 @@ void MetaWareNNFunction::read_tensor(glow::Constant *c, std::string tensor_name,
     std::cout << dim << ", ";
 
   auto size = std::accumulate(begin(const_dims), end(const_dims), 1, std::multiplies<double>());
-  glow::Handle<T> handle = c->getHandle<T>();
+  glow::Handle<T1> handle = c->getHandle<T1>();
   auto begin = &handle.raw(0);
-  std::vector<float> data(begin, begin + handle.actualSize());
+  std::vector<T2> data(begin, begin + handle.actualSize());
   metawarenn::Tensor tensor(tensor_name, const_dims, get_mwnn_type_glow(elem_kind), data);
   graph_->set_graph_initializers(tensor);
   graph_->initializer_names.insert(tensor.get_name());
@@ -125,7 +125,7 @@ void MetaWareNNFunction::CreateMWNNQuantParams(NodeValue c, std::string tensor_n
   graph_->initializer_names.insert(scale_name);
 
   std::string zp_name = tensor_name + std::string("_zero_point");
-  std::vector<float> tensor_vec_zp = {(float)c.getOffset()};
+  std::vector<int32_t> tensor_vec_zp = {c.getOffset()};
   ElementType::element_type type;
   if(c.getElementType() == ElemKind::FloatTy)
     type = ElementType::element_type::uint8_;
@@ -289,18 +289,18 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
           if (Constant *c = llvm::dyn_cast<Constant>(input.getNode())) {
             switch(c->getElementType()) {
               case ElemKind::FloatTy: {
-                read_tensor<float>(c, name, c->getElementType());
+                read_tensor<float, float>(c, name, c->getElementType());
                 break;
               }
               case ElemKind::Int8QTy:
               case ElemKind::UInt8QTy:
               case ElemKind::Int32QTy: {
                 if (c->getElementType() == ElemKind::Int8QTy)
-                  read_tensor<int8_t>(c, name, c->getElementType());
+                  read_tensor<int8_t, int32_t>(c, name, c->getElementType());
                 else if (c->getElementType() == ElemKind::UInt8QTy)
-                  read_tensor<uint8_t>(c, name, c->getElementType());
+                  read_tensor<uint8_t, int32_t>(c, name, c->getElementType());
                 else if (c->getElementType() == ElemKind::Int32QTy)
-                  read_tensor<int32_t>(c, name, c->getElementType());
+                  read_tensor<int32_t, int32_t>(c, name, c->getElementType());
                 node_op_type = "DequantizeLinear";
                 auto dequant_node_name = node_op_type + "_" + name;
                 node_inputs.clear(); node_outputs.clear();
@@ -434,7 +434,7 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
           auto input_name = reshape_node->getInput().generateNodeOutputName(true);
           std::string initializer_name = std::string(node_name + "_shape");
           auto dims = reshape_node->getDims();
-          std::vector<float> dims_vec(dims.size());
+          std::vector<int64_t> dims_vec(dims.size());
           std::vector<int> dims_;
           dims_.push_back(dims.size());
           int i = 0;
@@ -558,12 +558,12 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
             exit(1);
           }
           auto size = starts.size();
-          std::vector<float> starts_vec(size);
-          std::vector<float> ends_vec(size);
+          std::vector<int32_t> starts_vec(size);
+          std::vector<int32_t> ends_vec(size);
 
           for (unsigned b = 0, e = size; b < e; ++b) {
-            starts_vec[b] = (float)starts[b];
-            ends_vec[b] = (float)outs[b] + starts[b];
+            starts_vec[b] = starts[b];
+            ends_vec[b] = outs[b] + starts[b];
           }
           metawarenn::Tensor tensor_starts(node_name + "_starts", std::vector<int>{int(size)}, ElementType::element_type::int32_, starts_vec);
           graph_->set_graph_initializers(tensor_starts);
@@ -691,7 +691,7 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
           node_op_type = "Pad";
           auto *pad_node = llvm::cast<PadNode>(node);
           auto pads = pad_node->getPads();
-          metawarenn::Tensor pads_tensor(node_name + "_pads", std::vector<int>{(int)pads.size()}, ElementType::element_type::float_, std::vector<float>{(float)pads[0], (float)pads[1], (float)pads[2], (float)pads[3]});
+          metawarenn::Tensor pads_tensor(node_name + "_pads", std::vector<int>{(int)pads.size()}, ElementType::element_type::int64_, std::vector<int64_t>{pads[0], pads[1], pads[2], pads[3]});
           node_inputs.emplace_back(pads_tensor.get_name());
           metawarenn::Tensor value_tensor(node_name + "_value", std::vector<int>{1}, ElementType::element_type::float_, std::vector<float>{(float)pad_node->getValue()});
           node_inputs.emplace_back(value_tensor.get_name());
