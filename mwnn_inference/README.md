@@ -94,13 +94,13 @@
   ```
 * #### To Load MetaWareNN Executable Graph in Shared Memory [Default flow]
   ```
-   1. Set the absolute path to glow in glow/lib/Backends/MetaWareNN/env.sh line no: 5
+   1. Set the absolute path to glow in glow/mwnn_inference/env.sh line no: 5
   ```
 * #### To Invoke the NNAC & EVGENCNN Script to generate the EV Binary file
   ```
    1. Enable the `INVOKE_NNAC` macro in glow/lib/Backends/MetaWareNN/MetaWareNNFunction.h line no: 19
-   2. Set the absolute path to ARC/ directory in glow/lib/Backends/MetaWareNN/env.sh line no: 11
-   3. Set the absolute path to cnn_models/ directory in glow/lib/Backends/MetaWareNN/env.sh line no: 12
+   2. Set the absolute path to ARC/ directory in glow/mwnn_inference/env.sh line no: 11
+   3. Set the absolute path to cnn_models/ directory in glow/mwnn_inference/env.sh line no: 12
    [Note] : Generated EV Binary file for MetaWareNN SubGraph will be stored in evgencnn/scripts folder and all intermediate files will get stored in `/path/to/glow/NNAC_DUMPS` folder
   ```
 * #### To use metawarenn_lib as shared library
