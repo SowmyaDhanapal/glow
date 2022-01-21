@@ -1101,8 +1101,8 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
           manager.register_pass(rt);
         }
     }
-    /*optimizer::CalculateOffset co(graph_);
-    manager.register_pass(co);*/
+    optimizer::CalculateOffset co(graph_);
+    manager.register_pass(co);
     manager.run_passes();
     #if !EXECUTABLE_GRAPH_SERIALIZATION
     write_onnx_proto(graph_);
