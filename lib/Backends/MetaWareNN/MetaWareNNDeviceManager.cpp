@@ -1,8 +1,5 @@
 #include "MetaWareNNDeviceManager.h"
 
-using namespace glow;
-using namespace glow::runtime;
-
 namespace metawarenn {
 
 std::atomic<RunIdentifierTy> MetaWareNNDeviceManager::runIdentifier_;
@@ -20,7 +17,7 @@ MetaWareNNDeviceManager::~MetaWareNNDeviceManager() {}
 
 RunIdentifierTy
 MetaWareNNDeviceManager::runFunction(std::string functionName,
-                                 std::unique_ptr<ExecutionContext> ctx,
+                                 std::unique_ptr<glow::ExecutionContext> ctx,
                                  runtime::ResultCBTy resultCB) {
   //Inference Part
   LOG(INFO) << "runFunction!";

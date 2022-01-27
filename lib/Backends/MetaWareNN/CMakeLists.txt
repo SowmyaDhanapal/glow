@@ -100,10 +100,11 @@ add_library(MetaWareNN
             metawarenn_lib/mwnnconvert/mwnn_protobuf/cpp_wrapper/MWNN.pb.cc
             metawarenn_lib/mwnnconvert/onnx_protobuf/onnx-ml.pb.cc
             metawarenn_lib/mwnnconvert/mwnn_to_onnx_proto.cc
-            metawarenn_lib/mwnn_inference_api/mwnn_inference_api.cc
-            metawarenn_lib/mwnn_inference_api/mwnn_inference_shm.cc
             metawarenn_lib/executable_network/metawarenn_executable_graph.cc
-            metawarenn_lib/executable_network/metawarenn_serialization.cc)
+            metawarenn_lib/executable_network/metawarenn_serialization.cc
+            metawarenn_lib/inference_engine/mwnn_inference_engine.cc
+            metawarenn_lib/inference_engine/mwnn_execution_context.cc
+            metawarenn_lib/inference_engine/mwnn_device_memory.cc)
 
 set(PROTOBUF_LIB "${CMAKE_CURRENT_SOURCE_DIR}/metawarenn_lib/lib/libprotobuf.so")
 target_link_libraries(MetaWareNN

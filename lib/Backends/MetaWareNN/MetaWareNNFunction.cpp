@@ -1132,8 +1132,11 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
           std::cout << "\n      Consumer Node - " << node_name;
       }
     }
-    #if EXECUTABLE_GRAPH_SERIALIZATION
-    exe_graph_ = std::make_shared<metawarenn::ExecutableGraph>(*graph_);
+
+    #if INFERENCE_ENGINE
+    inference_engine_ = inference_builder_->CreateInferenceEngine(*graph_);
+    inference_engine_->SerializeToFile();
+    execution_context_ = inference_engine_->CreateExecutionContext();
     #endif
 
     #if INVOKE_NNAC
@@ -1297,7 +1300,7 @@ void MetaWareNNFunction::findIOPlaceholders(Function *F) {
 
 MetaWareNNFunction::~MetaWareNNFunction() {}
 
-Error MetaWareNNFunction::execute(ExecutionContext *context) {
+Error MetaWareNNFunction::execute(glow::ExecutionContext *context) {
   //Fills the graph_inputs with input data pointer using indexes
   std::unordered_map<std::string, float*> graph_inputs;
   std::unordered_map<std::string, float*> graph_outputs;
@@ -1309,28 +1312,18 @@ Error MetaWareNNFunction::execute(ExecutionContext *context) {
   for (const auto &ph : this->getOutputs()) {
     auto *tensor = bindings->get(ph);
     graph_outputs[graph_->get_graph_op_names()[0]] = (float*)tensor->getUnsafePtr();
-
   }
 
-  // **************************************** Calls to invoke the MetaWareNN Inference API ************************************
-  #if EXECUTABLE_GRAPH_SERIALIZATION
-  InferenceApi mwapi;
+  #if INFERENCE_ENGINE
+    auto graph_desc = inference_engine_->GetGraphDesc();
+    std::string ip_name = graph_desc.input_desc[0].tensor_name;
+    std::string op_name = graph_desc.output_desc[0].tensor_name;
+    std::cout << "\n Ip_name : " << ip_name << "Size : " << graph_desc.input_desc[0].size;
+    std::cout << "\n Op_name : " << op_name << "size : " << graph_desc.output_desc[0].size;
 
-  std::vector<std::string> ip_names = graph_->get_graph_ip_names();
-  auto ip_shape = graph_->get_graph_ip_tensor()[0].get_dims();
-
-  mwapi.prepareInput(graph_inputs[ip_names[0]], ip_shape);
-
-  std::vector<std::string> op_names = graph_->get_graph_op_names();
-  auto op_shape = graph_->get_graph_op_tensor()[0].get_dims();
-
-  mwapi.prepareOutput(op_shape);
-
-  mwapi.prepareGraph(graph_->get_name());
-
-  mwapi.runGraph();
-
-  mwapi.getOutput(graph_outputs[op_names[0]], op_shape);
+    execution_context_->CopyInputToDevice(graph_inputs[ip_name], graph_desc.input_desc[0].size);
+    execution_context_->Execute();
+    execution_context_->CopyOutputFromDevice(graph_outputs[op_name], graph_desc.output_desc[0].size);
   #endif
 
   // ******************************************* Call to invoke the local run function *****************************************

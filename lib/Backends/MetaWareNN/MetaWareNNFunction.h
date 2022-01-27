@@ -11,9 +11,10 @@
 #include "metawarenn_lib/metawarenn_element.h"
 #include "metawarenn_lib/optimizer/pass_manager.h"
 #include "metawarenn_lib/mwnnconvert/mwnn_protobuf/cpp_wrapper/MWNN.pb.h"
-#include "metawarenn_lib/mwnn_inference_api/mwnn_inference_api.h"
 #include "metawarenn_lib/executable_network/metawarenn_executable_graph.h"
 #include "metawarenn_lib/mwnnconvert/mwnn_to_onnx_proto.h"
+#include "metawarenn_lib/inference_engine/mwnn_inference_engine.h"
+#include "metawarenn_lib/inference_engine/mwnn_execution_context.h"
 
 #include <fcntl.h>
 
@@ -33,7 +34,7 @@ public:
   ///@{
   ~MetaWareNNFunction() override;
   std::string getCompileBackendName() const override { return "MetaWareNN"; }
-  Error execute(ExecutionContext *context) override;
+  Error execute(glow::ExecutionContext *context) override;
   const PlaceholderList &getInputs() const { return inputs_; }
   const PlaceholderList &getOutputs() const { return outputs_; }
   ///@}
@@ -81,6 +82,11 @@ private:
   PlaceholderList outputs_;
 
   std::shared_ptr<metawarenn::Graph> graph_;
+  #if INFERENCE_ENGINE
+  std::shared_ptr<metawarenn::Builder> inference_builder_ = std::make_shared<metawarenn::Builder>();
+  std::shared_ptr<metawarenn::InferenceEngine> inference_engine_;
+  std::shared_ptr<metawarenn::ExecutionContext> execution_context_;
+  #endif
   #if EXECUTABLE_GRAPH_SERIALIZATION
   std::shared_ptr<metawarenn::ExecutableGraph> exe_graph_;
   #endif

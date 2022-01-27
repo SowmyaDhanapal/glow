@@ -5,6 +5,9 @@
 #include "glow/Graph/Utils.h"
 #include "MetaWareNNFunction.h"
 
+using namespace glow;
+using namespace glow::runtime;
+
 namespace metawarenn {
 
 class MetaWareNNDeviceManager : public glow::runtime::DeviceManager {
@@ -14,7 +17,7 @@ public:
   ~MetaWareNNDeviceManager();
   glow::runtime::RunIdentifierTy
   runFunction(std::string functionName,
-                                  std::unique_ptr<ExecutionContext> ctx,
+                                  std::unique_ptr<glow::ExecutionContext> ctx,
                                   runtime::ResultCBTy resultCB) override;
   void addNetwork(const Module *module,
                                       glow::runtime::FunctionMapTy functions,
