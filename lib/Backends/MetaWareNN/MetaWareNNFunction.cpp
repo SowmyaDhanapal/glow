@@ -1101,10 +1101,10 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
           manager.register_pass(rt);
         }
     }
-    optimizer::CalculateOffset co(graph_);
-    manager.register_pass(co);
+    /*optimizer::CalculateOffset co(graph_);
+    manager.register_pass(co);*/
     manager.run_passes();
-    #if !EXECUTABLE_GRAPH_SERIALIZATION
+    #if !INFERENCE_ENGINE
     write_onnx_proto(graph_);
     #endif
 
@@ -1134,9 +1134,22 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
     }
 
     #if INFERENCE_ENGINE
-    inference_engine_ = inference_builder_->CreateInferenceEngine(*graph_);
-    inference_engine_->SerializeToFile();
-    execution_context_ = inference_engine_->CreateExecutionContext();
+    dynamic_shape_ = false;
+    auto ip_tensor = graph_->get_graph_ip_tensor()[0];
+    auto dims = ip_tensor.get_dims();
+    auto name = ip_tensor.get_name();
+    for(int i = 0; i < dims.size(); i++) {
+      if(dims[i] == -1) {
+        dynamic_shape_ = true;
+        input_shape_range_[name][i] = std::make_pair(INT_MAX, INT_MIN);
+      }
+    }
+    builder_config_ = inference_builder_->CreateBuilderConfig();
+    if(!dynamic_shape_) {
+      inference_engine_ = inference_builder_->CreateInferenceEngine(graph_, builder_config_, false);
+      inference_engine_->SerializeToFile(dynamic_shape_, optimization_profile_);
+      execution_context_ = inference_engine_->CreateExecutionContext();
+    }
     #endif
 
     #if INVOKE_NNAC
@@ -1302,28 +1315,93 @@ MetaWareNNFunction::~MetaWareNNFunction() {}
 
 Error MetaWareNNFunction::execute(glow::ExecutionContext *context) {
   //Fills the graph_inputs with input data pointer using indexes
+  #if INFERENCE_ENGINE
+
+  bool update_engine = false;
+  if(dynamic_shape_) {
+    bool profile_file_exists = false;
+    //Creates a new optimization profile for dynamic input shapes
+    if(optimization_profile_ == nullptr)
+      optimization_profile_ = inference_builder_->CreateOptimizationProfile();
+    auto profile_path = inference_builder_->GetProfilePath(graph_->get_name(), &profile_file_exists);
+    if(profile_file_exists)
+      input_shape_range_ = optimization_profile_->DeserializeProfileInfo(profile_path);
+  }
   std::unordered_map<std::string, float*> graph_inputs;
   std::unordered_map<std::string, float*> graph_outputs;
   auto bindings = context->getPlaceholderBindings();
   for (const auto &ph : this->getInputs()) {
     auto *tensor = bindings->get(ph);
     graph_inputs[std::string(ph->getName())] = (float*)tensor->getUnsafePtr();
+    auto dims = tensor->dims();
+    std::vector<int> tensor_shapes(dims.size());
+    std::cout << "\n Glow dims: ";
+    for(int i = 0; i < dims.size(); i++) {
+      tensor_shapes[i] = dims[i];
+      std::cout << dims[i] << ", ";
+    }
+    //If graph input contains dynamic shape then get the size at runtime & fill the optimization profile attributes
+    if(dynamic_shape_) {
+      if(input_shape_range_.find(ph->getName()) != input_shape_range_.end()) {
+        auto& ip_shape_range_ = input_shape_range_[ph->getName()];
+        for(int d = 0; d < tensor_shapes.size(); d++) {
+          if (ip_shape_range_.find(d) != ip_shape_range_.end()) {
+            // Update Minimum Dimension
+            if (tensor_shapes[d] < ip_shape_range_[d].first) {
+              ip_shape_range_[d].first = tensor_shapes[d];
+              update_engine = true;
+            }
+            // Update Maximum Dimension
+            if(tensor_shapes[d] > ip_shape_range_[d].second) {
+              ip_shape_range_[d].second = tensor_shapes[d];
+              update_engine = true;
+            }
+          }
+        }
+        optimization_profile_->SetInputDimensions(ph->getName(), ip_shape_range_);
+      }
+    }
   }
+
   for (const auto &ph : this->getOutputs()) {
     auto *tensor = bindings->get(ph);
     graph_outputs[graph_->get_graph_op_names()[0]] = (float*)tensor->getUnsafePtr();
   }
 
-  #if INFERENCE_ENGINE
+  if (dynamic_shape_) {
+    std::cout << "\n Creating Engine, Context for Dynamic Input shapes";
+    builder_config_->AddOptimizationProfile(optimization_profile_);
+    inference_engine_ = inference_builder_->CreateInferenceEngine(graph_, builder_config_, update_engine);
     auto graph_desc = inference_engine_->GetGraphDesc();
-    std::string ip_name = graph_desc.input_desc[0].tensor_name;
-    std::string op_name = graph_desc.output_desc[0].tensor_name;
-    std::cout << "\n Ip_name : " << ip_name << "Size : " << graph_desc.input_desc[0].size;
-    std::cout << "\n Op_name : " << op_name << "size : " << graph_desc.output_desc[0].size;
 
-    execution_context_->CopyInputToDevice(graph_inputs[ip_name], graph_desc.input_desc[0].size);
-    execution_context_->Execute();
-    execution_context_->CopyOutputFromDevice(graph_outputs[op_name], graph_desc.output_desc[0].size);
+    auto bindings = context->getPlaceholderBindings();
+    // Handling for single input case
+    const auto &ph = this->getInputs().front();
+    glow::Tensor *tensor = bindings->get(ph);
+    auto tensor_shapes = tensor->dims();
+    uint64_t size = 1;
+    std::cout << "\n ORT Input Shape: ";
+    for(auto dim: tensor_shapes) {
+      std::cout << dim << ", ";
+      size = size * dim;
+    }
+
+    graph_desc.UpdateInputDesc(0, size * sizeof(::metawarenn::data_type));
+    inference_engine_->SetGraphDesc(graph_desc);
+
+    inference_engine_->SerializeToFile(dynamic_shape_, optimization_profile_);
+    execution_context_ = inference_engine_->CreateExecutionContext();
+  }
+
+  auto graph_desc = inference_engine_->GetGraphDesc();
+  std::string ip_name = graph_desc.input_desc[0].tensor_name;
+  std::string op_name = graph_desc.output_desc[0].tensor_name;
+  std::cout << "\n Ip_name : " << ip_name << "Size : " << graph_desc.input_desc[0].size;
+  std::cout << "\n Op_name : " << op_name << "size : " << graph_desc.output_desc[0].size;
+
+  execution_context_->CopyInputToDevice(graph_inputs[ip_name], graph_desc.input_desc[0].size);
+  execution_context_->Execute();
+  execution_context_->CopyOutputFromDevice(graph_outputs[op_name], graph_desc.output_desc[0].size);
   #endif
 
   // ******************************************* Call to invoke the local run function *****************************************
