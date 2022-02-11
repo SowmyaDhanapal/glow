@@ -104,7 +104,7 @@ add_library(MetaWareNN
             metawarenn_lib/executable_network/metawarenn_serialization.cc
             metawarenn_lib/inference_engine/mwnn_inference_engine.cc
             metawarenn_lib/inference_engine/mwnn_execution_context.cc
-            metawarenn_lib/inference_engine/mwnn_device_memory.cc
+            metawarenn_lib/inference_engine/mwnn_device.cc
             metawarenn_lib/inference_engine/mwnn_builder.cc
             metawarenn_lib/inference_engine/mwnn_optimization_profile.cc
             metawarenn_lib/inference_engine/mwnn_encrypt_decrypt.cc)

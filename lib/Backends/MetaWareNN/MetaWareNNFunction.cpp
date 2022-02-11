@@ -1144,10 +1144,18 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
         input_shape_range_[name][i] = std::make_pair(INT_MAX, INT_MIN);
       }
     }
+    metawarenn::Logger* logger = inference_builder_->GetLogger();
+    // Set Required LogLevel (DEBUG, INFO, WARNING, ERROR) in below line to change the Default INFO level
+    logger->SetLogLevel(metawarenn::LogLevel::DEBUG);
+
     builder_config_ = inference_builder_->CreateBuilderConfig();
+
+    inference_builder_->FillGraphDesc(graph_);
+
+    exe_graph_ = inference_builder_->CacheOrCreateExeGraph(graph_, graph_->get_name(), false);
     if(!dynamic_shape_) {
-      inference_engine_ = inference_builder_->CreateInferenceEngine(graph_, builder_config_, false);
-      inference_engine_->SerializeToFile(dynamic_shape_, optimization_profile_);
+      inference_engine_ = inference_builder_->CreateInferenceEngine(exe_graph_, builder_config_, false);
+      inference_engine_->SerializeToFile();
       execution_context_ = inference_engine_->CreateExecutionContext();
     }
     #endif
@@ -1325,7 +1333,7 @@ Error MetaWareNNFunction::execute(glow::ExecutionContext *context) {
       optimization_profile_ = inference_builder_->CreateOptimizationProfile();
     auto profile_path = inference_builder_->GetProfilePath(graph_->get_name(), &profile_file_exists);
     if(profile_file_exists)
-      input_shape_range_ = optimization_profile_->DeserializeProfileInfo(profile_path);
+      inference_builder_->DeserializeProfileInfo(profile_path, builder_config_);
   }
   std::unordered_map<std::string, float*> graph_inputs;
   std::unordered_map<std::string, float*> graph_outputs;
@@ -1371,7 +1379,7 @@ Error MetaWareNNFunction::execute(glow::ExecutionContext *context) {
   if (dynamic_shape_) {
     std::cout << "\n Creating Engine, Context for Dynamic Input shapes";
     builder_config_->AddOptimizationProfile(optimization_profile_);
-    inference_engine_ = inference_builder_->CreateInferenceEngine(graph_, builder_config_, update_engine);
+    inference_engine_ = inference_builder_->CreateInferenceEngine(exe_graph_, builder_config_, update_engine);
     auto graph_desc = inference_engine_->GetGraphDesc();
 
     auto bindings = context->getPlaceholderBindings();
@@ -1389,7 +1397,7 @@ Error MetaWareNNFunction::execute(glow::ExecutionContext *context) {
     graph_desc.UpdateInputDesc(0, size * sizeof(::metawarenn::data_type));
     inference_engine_->SetGraphDesc(graph_desc);
 
-    inference_engine_->SerializeToFile(dynamic_shape_, optimization_profile_);
+    inference_engine_->SerializeToFile();
     execution_context_ = inference_engine_->CreateExecutionContext();
   }
 
