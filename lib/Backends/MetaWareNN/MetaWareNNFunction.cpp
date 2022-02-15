@@ -216,28 +216,7 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
           dims[0] = int(glow_dims[0]);
         }
       }
-      if(V->getName().equals(F->findPlaceholders().front()->getName())) {
-        std::string input_name = V->getName();
-        graph_->set_graph_ip_names(input_name);
-        //Fills Graph Input Tensor Details - Name, Dims
-        Tensor ip_tensor(input_name, get_mwnn_type_glow(data_type), dims);
-        graph_->set_graph_ip_tensor(ip_tensor);
-        if(V->getElementType() == ElemKind::Int8QTy || V->getElementType() == ElemKind::UInt8QTy) {
-          quantize_encounter = true;
-          // Fill Scale, Zero Point initializer for graph input node
-          CreateMWNNQuantParams(V->getNthResult(0), input_name);
-          node_inputs.clear(); node_outputs.clear();
-          std::string node_op_type = "DequantizeLinear";
-          auto dequant_node_name = node_op_type + "_" + input_name;
-          node_inputs.push_back(input_name);
-          node_inputs.push_back(input_name + "_scale");
-          node_inputs.push_back(input_name + "_zero_point");
-          node_outputs.push_back(dequant_node_name);
-          CreateMWNNNode(dequant_node_name, node_op_type, node_attributes, node_inputs, node_outputs);
-          quant_ip_mapper[input_name] = node_outputs[0];
-        }
-      }
-      else if (auto *save = getOutputSave(F, V)) {
+      if (auto *save = getOutputSave(F, V)) {
         std::string output_name = save->getInput().getNode()->getName();
         if(quantize_encounter) {
           // Fill Scale, Zero Point initializer for graph output node
@@ -262,6 +241,27 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
         //Fills Graph Output Tensor Details - Name, Dims
         Tensor op_tensor(output_name, get_mwnn_type_glow(data_type), dims);
         graph_->set_graph_op_tensor(op_tensor);
+        }
+      }
+      else { //(V->getName().equals(F->findPlaceholders().front()->getName())) {
+        std::string input_name = V->getName();
+        graph_->set_graph_ip_names(input_name);
+        //Fills Graph Input Tensor Details - Name, Dims
+        Tensor ip_tensor(input_name, get_mwnn_type_glow(data_type), dims);
+        graph_->set_graph_ip_tensor(ip_tensor);
+        if(V->getElementType() == ElemKind::Int8QTy || V->getElementType() == ElemKind::UInt8QTy) {
+          quantize_encounter = true;
+          // Fill Scale, Zero Point initializer for graph input node
+          CreateMWNNQuantParams(V->getNthResult(0), input_name);
+          node_inputs.clear(); node_outputs.clear();
+          std::string node_op_type = "DequantizeLinear";
+          auto dequant_node_name = node_op_type + "_" + input_name;
+          node_inputs.push_back(input_name);
+          node_inputs.push_back(input_name + "_scale");
+          node_inputs.push_back(input_name + "_zero_point");
+          node_outputs.push_back(dequant_node_name);
+          CreateMWNNNode(dequant_node_name, node_op_type, node_attributes, node_inputs, node_outputs);
+          quant_ip_mapper[input_name] = node_outputs[0];
         }
       }
     }
@@ -1402,14 +1402,26 @@ Error MetaWareNNFunction::execute(glow::ExecutionContext *context) {
   }
 
   auto graph_desc = inference_engine_->GetGraphDesc();
-  std::string ip_name = graph_desc.input_desc[0].tensor_name;
-  std::string op_name = graph_desc.output_desc[0].tensor_name;
-  std::cout << "\n Ip_name : " << ip_name << "Size : " << graph_desc.input_desc[0].size;
-  std::cout << "\n Op_name : " << op_name << "size : " << graph_desc.output_desc[0].size;
+  std::vector<float*> ip_tensors(graph_desc.input_desc.size());
+  std::vector<uint32_t> ip_sizes(graph_desc.input_desc.size());
+  std::vector<float*> op_tensors(graph_desc.output_desc.size());
+  std::vector<uint32_t> op_sizes(graph_desc.output_desc.size());
 
-  execution_context_->CopyInputToDevice(graph_inputs[ip_name], graph_desc.input_desc[0].size);
+  for(int ip = 0; ip < graph_desc.input_desc.size(); ip++) {
+    std::string ip_name = graph_desc.input_desc[ip].tensor_name;
+    ip_tensors[ip] = graph_inputs[ip_name];
+    ip_sizes[ip] = graph_desc.input_desc[ip].size;
+  }
+
+  for(int op = 0; op < graph_desc.output_desc.size(); op++) {
+    std::string op_name = graph_desc.output_desc[op].tensor_name;
+    op_tensors[op] = graph_outputs[op_name];
+    op_sizes[op] = graph_desc.output_desc[op].size;
+  }
+
+  execution_context_->CopyInputToDevice(ip_tensors, ip_sizes);
   execution_context_->Execute();
-  execution_context_->CopyOutputFromDevice(graph_outputs[op_name], graph_desc.output_desc[0].size);
+  execution_context_->CopyOutputFromDevice(op_tensors, op_sizes);
   #endif
 
   // ******************************************* Call to invoke the local run function *****************************************

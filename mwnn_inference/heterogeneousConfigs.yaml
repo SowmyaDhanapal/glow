@@ -1,0 +1,11 @@
+---
+- name:     Device1
+  backendName: MetaWareNN
+  parameters: |
+    "nonSupportedNodes":"AvgPool"
+    "deviceID" : "0"
+- name:     Device2
+  backendName: Interpreter
+  parameters: |
+    "supportedNodes":""
+...

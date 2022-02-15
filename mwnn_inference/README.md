@@ -130,7 +130,9 @@
 * `cd /path/to/glow/build_Release/bin`
 * `source /path/to/glow/mwnn_inference/env.sh`
 * `./image-classifier ../../tests/images/imagenet/cat_285.png -image-mode=0to1 -m=/path/to/mobilenetv2-7.onnx -model-input-name=data -cpu-memory=100000 -backend=MetaWareNN`
-* `./image-classifier ../../tests/images/imagenet/dog_207.png -image-mode=0to1 -m=/path/to/mobilenetv2-7.onnx -model-input-name=data -cpu-memory=100000 -load-device-configs="../tests/runtime_test/heterogeneousConfigs.yaml"`
+
+### To run subgraphs with AvgPool Unsupported node
+* `./image-classifier ../../tests/images/imagenet/dog_207.png -image-mode=0to1 -m=/path/to/mobilenetv2-7.onnx -model-input-name=data -cpu-memory=100000 -load-device-configs="../../mwnn_inference/heterogeneousConfigs.yaml"`
 
 ## To run multiple ONNX models from model zoo
 * `cd /path/to/glow/mwnn_inference`
