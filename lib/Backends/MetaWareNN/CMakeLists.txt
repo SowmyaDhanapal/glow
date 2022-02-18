@@ -7,87 +7,6 @@ add_library(MetaWareNN
             metawarenn_lib/metawarenn_tensor.cc
             metawarenn_lib/metawarenn_node.cc
             metawarenn_lib/metawarenn_attribute.cc
-            metawarenn_lib/metawarenn_utils.cc
-            metawarenn_lib/kernels/helpers/mli_helpers.cc
-            metawarenn_lib/op/add.cc
-            metawarenn_lib/op/avg_pool.cc
-            metawarenn_lib/op/conv.cc
-            metawarenn_lib/op/node.cc
-            metawarenn_lib/op/relu.cc
-            metawarenn_lib/op/reshape.cc
-            metawarenn_lib/op/softmax.cc
-            metawarenn_lib/op/transpose.cc
-            metawarenn_lib/op/global_avg_pool.cc
-            metawarenn_lib/op/gemm.cc
-            metawarenn_lib/op/max_pool.cc
-            metawarenn_lib/op/flatten.cc
-            metawarenn_lib/op/batch_normalization.cc
-            metawarenn_lib/op/concat.cc
-            metawarenn_lib/op/lrn.cc
-            metawarenn_lib/op/mul.cc
-            metawarenn_lib/op/clip.cc
-            metawarenn_lib/op/squeeze.cc
-            metawarenn_lib/op/unsqueeze.cc
-            metawarenn_lib/op/gather.cc
-            metawarenn_lib/op/shape.cc
-            metawarenn_lib/op/mean.cc
-            metawarenn_lib/op/split.cc
-            metawarenn_lib/op/pad.cc
-            metawarenn_lib/op/exp.cc
-            metawarenn_lib/op/max.cc
-            metawarenn_lib/op/sum.cc
-            metawarenn_lib/op/min.cc
-            metawarenn_lib/op/cast.cc
-            metawarenn_lib/op/sub.cc
-            metawarenn_lib/op/prelu.cc
-            metawarenn_lib/op/div.cc
-            metawarenn_lib/op/conv_transpose.cc
-            metawarenn_lib/op/matmul.cc
-            metawarenn_lib/op/upsample.cc
-            metawarenn_lib/op/instance_normalization.cc
-            metawarenn_lib/op/sigmoid.cc
-            metawarenn_lib/op/leaky_relu.cc
-            metawarenn_lib/op/slice.cc
-            metawarenn_lib/op/tanh.cc
-            metawarenn_lib/op/pow.cc
-            metawarenn_lib/op/sqrt.cc
-            metawarenn_lib/op/einsum.cc
-            metawarenn_lib/op/elu.cc
-            metawarenn_lib/op/where.cc
-            metawarenn_lib/op/abs.cc
-            metawarenn_lib/op/expand.cc
-            metawarenn_lib/op/scatter_nd.cc
-            metawarenn_lib/op/log.cc
-            metawarenn_lib/op/softplus.cc
-            metawarenn_lib/op/hard_swish.cc
-            metawarenn_lib/op/space_to_depth.cc
-            metawarenn_lib/op/argmax.cc
-            metawarenn_lib/op/reduce_mean.cc
-            metawarenn_lib/op/identity.cc
-            metawarenn_lib/op/reduce_sum.cc
-            metawarenn_lib/op/resize.cc
-            metawarenn_lib/op/reducel2.cc
-            metawarenn_lib/op/non_max_suppression.cc
-            metawarenn_lib/op/reduce_min.cc
-            metawarenn_lib/op/topk.cc
-            metawarenn_lib/op/less.cc
-            metawarenn_lib/op/tile.cc
-            metawarenn_lib/op/constant_of_shape.cc
-            metawarenn_lib/op/ceil.cc
-            metawarenn_lib/op/round.cc
-            metawarenn_lib/op/scatter.cc
-            metawarenn_lib/op/roi_align.cc
-            metawarenn_lib/op/equal.cc
-            metawarenn_lib/op/non_zero.cc
-            metawarenn_lib/op/not.cc
-            metawarenn_lib/op/and.cc
-            metawarenn_lib/op/floor.cc
-            metawarenn_lib/op/greater.cc
-            metawarenn_lib/op/quantize_linear.cc
-            metawarenn_lib/op/dequantize_linear.cc
-            metawarenn_lib/op/argmin.cc
-            metawarenn_lib/op/reduce_max.cc
-            metawarenn_lib/op/dropout.cc
             metawarenn_lib/optimizer/metawarenn_optimizer.cc
             metawarenn_lib/optimizer/remove_reshape.cc
             metawarenn_lib/optimizer/fuse_relu.cc
@@ -100,6 +19,7 @@ add_library(MetaWareNN
             metawarenn_lib/mwnnconvert/mwnn_protobuf/cpp_wrapper/MWNN.pb.cc
             metawarenn_lib/mwnnconvert/onnx_protobuf/onnx-ml.pb.cc
             metawarenn_lib/mwnnconvert/mwnn_to_onnx_proto.cc
+            metawarenn_lib/mwnnconvert/mwnn_to_proto.cc
             metawarenn_lib/executable_network/metawarenn_executable_graph.cc
             metawarenn_lib/executable_network/metawarenn_serialization.cc
             metawarenn_lib/inference_engine/mwnn_inference_engine.cc

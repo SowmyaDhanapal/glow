@@ -23,7 +23,6 @@ if os.path.exists(op_dump_folder):
 os.makedirs(op_dump_folder)
 op_file = open(op_dump_folder + "/validation_result.txt", 'w')
 image_path = glow_path + "/tests/images/imagenet/cat_285.png"
-
 dtype = "float32"
 model_dir = glow_path + "/tflite_quantized_models/"
 f = open("tflite_quantized_models.txt", "r")
@@ -32,6 +31,8 @@ img = Image.open("image/kitten.jpg")
 for line in f:
   inp_shape = []
   model_name = line.strip()
+  head, tail = os.path.split(model_name)
+  os.environ["MODELNAME"] = tail
   model_path = model_dir + model_name
   print("Model path: ", model_path)
   if(os.path.exists(model_path)):
@@ -54,13 +55,13 @@ for line in f:
   print("input_shape : ", input_shape, len(input_shape))
   tf_scale = output_details[0]['quantization_parameters']['scales'][0]
   tf_zero_point = output_details[0]['quantization_parameters']['zero_points'][0]
-
+  if(input_shape[1] == 299):
+    image_path = glow_path + "/mwnn_inference/image/image_299.png"
   img = img.resize((input_shape[1], input_shape[2])) #H, W from model
 
   # add N dim
   input_data = np.expand_dims(img, axis=0)
   print(np.shape(input_data))
-
   interpreter.set_tensor(input_details[0]['index'], input_data)
   interpreter.invoke()
 
@@ -75,7 +76,7 @@ for line in f:
   if(FLOAT_OUTPUT):
     flat_result = (flat_result - tf_zero_point) * tf_scale
   print(input_details[0]['name'])
-  subprocess.run([glow_path+ "/build_Release/bin/image-classifier", image_path, "-m", model_path, "-model-input-name", input_details[0]['name'], "-cpu-memory", "100000", "-backend=MetaWareNN", "-tflite-uint8-to-int8=false", "-tflite-float-softmax=false"])#, "quantization-schema=symmetric with uint8"])
+  subprocess.run([glow_path+ "/build_Release/bin/image-classifier", image_path, "-m", model_path, "-model-input-name", input_details[0]['name'], "-cpu-memory", "100000", "-backend=MetaWareNN", "-tflite-uint8-to-int8=false", "-tflite-float-softmax=false", "-image-layout", "NHWC"])#, "quantization-schema=symmetric with uint8"])
   gen_model_name = op_dump_folder + "/model_" + str(model_name.split("/")[-1]).split(".tflite")[0] + ".onnx"
   os.rename("model.onnx", gen_model_name)
 

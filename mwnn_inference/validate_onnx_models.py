@@ -20,6 +20,7 @@ op_file = open(output_folder + "/validation_result.txt", 'w')
 for line in f:
   inp_shape = []
   model_name = line.strip()
+  os.environ["MODELNAME"] = model_name
   model_path = model_dir + model_name
   print("Model path: ", model_path)
   if(os.path.exists(model_path)):

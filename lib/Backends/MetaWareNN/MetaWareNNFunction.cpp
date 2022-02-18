@@ -96,7 +96,7 @@ void MetaWareNNFunction::read_tensor(glow::Constant *c, std::string tensor_name,
   std::vector<T2> data(begin, begin + handle.actualSize());
   metawarenn::Tensor tensor(tensor_name, const_dims, get_mwnn_type_glow(elem_kind), data);
   graph_->set_graph_initializers(tensor);
-  graph_->initializer_names.insert(tensor.get_name());
+  graph_->initializer_names_.insert(tensor.get_name());
 }
 
 void MetaWareNNFunction::CreateMWNNNode(const std::string &node_name_,
@@ -120,21 +120,21 @@ void MetaWareNNFunction::CreateMWNNQuantParams(NodeValue c, std::string tensor_n
   std::string scale_name = tensor_name + std::string("_scale");
   std::vector<float> tensor_vec_scale = {c.getScale()};
   ::metawarenn::Tensor scale_tensor(scale_name, std::vector<int>({tensor_vec_scale.size()}),
-                            ::metawarenn::ElementType::element_type::float_, tensor_vec_scale);
+                            ::metawarenn::Element::ElementType::kFloat, tensor_vec_scale);
   graph_->set_graph_initializers(scale_tensor);
-  graph_->initializer_names.insert(scale_name);
+  graph_->initializer_names_.insert(scale_name);
 
   std::string zp_name = tensor_name + std::string("_zero_point");
   std::vector<int32_t> tensor_vec_zp = {c.getOffset()};
-  ElementType::element_type type;
+  Element::ElementType type;
   if(c.getElementType() == ElemKind::FloatTy)
-    type = ElementType::element_type::uint8_;
+    type = Element::ElementType::kUint8;
   else
     type = get_mwnn_type_glow(c.getElementType());
   ::metawarenn::Tensor zp_tensor(zp_name, std::vector<int>({tensor_vec_zp.size()}),
                             type, tensor_vec_zp);
   graph_->set_graph_initializers(zp_tensor);
-  graph_->initializer_names.insert(zp_name);
+  graph_->initializer_names_.insert(zp_name);
 }
 
 void MetaWareNNFunction::CreateQDQNodes(std::string ip_name, std::string op_name,
@@ -169,7 +169,9 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
     findIOPlaceholders(F);
     graph_count++;
     convert_glow_to_onnx(F);
-    std::string subgraph_name = "MetaWareNN_" + std::to_string(graph_count);
+    char* bin_path = getenv("MODELNAME");
+    std::string subgraph_name = "MetaWareNN_" + std::to_string(graph_count)
+                               + "_" + std::string(bin_path);
 
     /*Create MetaWareNN High Level Graph Representation from Glow SubGraph Function*/
     graph_ = std::make_shared<Graph>();
@@ -218,7 +220,7 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
       }
       if (auto *save = getOutputSave(F, V)) {
         std::string output_name = save->getInput().getNode()->getName();
-        if(quantize_encounter) {
+        if(V->getElementType() == ElemKind::Int8QTy || V->getElementType() == ElemKind::UInt8QTy) {
           // Fill Scale, Zero Point initializer for graph output node
           CreateMWNNQuantParams(save->getInput(), output_name);
           node_inputs.clear(); node_outputs.clear();
@@ -233,7 +235,7 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
 
           graph_->set_graph_op_names(node_outputs[0]);
           //Fills Graph Output Tensor Details - Name, Dims
-          ::metawarenn::Tensor m_op_tensor(node_outputs[0], ElementType::element_type::uint8_, dims);
+          ::metawarenn::Tensor m_op_tensor(node_outputs[0], Element::ElementType::kUint8, dims);
           graph_->set_graph_op_tensor(m_op_tensor);
         }
         else {
@@ -443,7 +445,7 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
           }
           metawarenn::Tensor reshape_tensor(initializer_name, dims_, get_mwnn_type_glow(ElemKind::Int64ITy), dims_vec);
           graph_->set_graph_initializers(reshape_tensor);
-          graph_->initializer_names.insert(initializer_name);
+          graph_->initializer_names_.insert(initializer_name);
           node_inputs.emplace_back(initializer_name);
           break;
         }
@@ -523,13 +525,13 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
         {
           node_op_type = "Clip";
           auto *clip_node = llvm::cast<ClipNode>(node);
-          metawarenn::Tensor min_tensor(node_name + "_min", std::vector<int>{1}, ElementType::element_type::float_, std::vector<float>{(float)clip_node->getMin()});
+          metawarenn::Tensor min_tensor(node_name + "_min", std::vector<int>{1}, Element::ElementType::kFloat, std::vector<float>{(float)clip_node->getMin()});
           graph_->set_graph_initializers(min_tensor);
-          graph_->initializer_names.insert(min_tensor.get_name());
+          graph_->initializer_names_.insert(min_tensor.get_name());
           node_inputs.emplace_back(min_tensor.get_name());
-          metawarenn::Tensor max_tensor(node_name + "_max", std::vector<int>{1}, ElementType::element_type::float_, std::vector<float>{(float)clip_node->getMax()});
+          metawarenn::Tensor max_tensor(node_name + "_max", std::vector<int>{1}, Element::ElementType::kFloat, std::vector<float>{(float)clip_node->getMax()});
           graph_->set_graph_initializers(max_tensor);
-          graph_->initializer_names.insert(max_tensor.get_name());
+          graph_->initializer_names_.insert(max_tensor.get_name());
           node_inputs.emplace_back(max_tensor.get_name());
           break;
         }
@@ -565,13 +567,13 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
             starts_vec[b] = starts[b];
             ends_vec[b] = outs[b] + starts[b];
           }
-          metawarenn::Tensor tensor_starts(node_name + "_starts", std::vector<int>{int(size)}, ElementType::element_type::int32_, starts_vec);
+          metawarenn::Tensor tensor_starts(node_name + "_starts", std::vector<int>{int(size)}, Element::ElementType::kInt32, starts_vec);
           graph_->set_graph_initializers(tensor_starts);
-          graph_->initializer_names.insert(tensor_starts.get_name());
+          graph_->initializer_names_.insert(tensor_starts.get_name());
           node_inputs.emplace_back(tensor_starts.get_name());
-          metawarenn::Tensor tensor_ends(node_name + "ends", std::vector<int>{int(size)}, ElementType::element_type::int32_, ends_vec);
+          metawarenn::Tensor tensor_ends(node_name + "ends", std::vector<int>{int(size)}, Element::ElementType::kInt32, ends_vec);
           graph_->set_graph_initializers(tensor_ends);
-          graph_->initializer_names.insert(tensor_ends.get_name());
+          graph_->initializer_names_.insert(tensor_ends.get_name());
           node_inputs.emplace_back(tensor_ends.get_name());
           break;
         }
@@ -585,9 +587,9 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
           node_op_type = "TopK";
           auto *topk_node = llvm::cast<TopKNode>(node);
           auto k_val = topk_node->getK();
-          metawarenn::Tensor k_tensor("K", std::vector<int>{1}, ElementType::element_type::float_, std::vector<float>{float(k_val)});
+          metawarenn::Tensor k_tensor("K", std::vector<int>{1}, Element::ElementType::kFloat, std::vector<float>{float(k_val)});
           graph_->set_graph_initializers(k_tensor);
-          graph_->initializer_names.insert(k_tensor.get_name());
+          graph_->initializer_names_.insert(k_tensor.get_name());
           break;
         }
         case Kinded::Kind::ArgMaxNodeKind:
@@ -631,9 +633,9 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
               scalar_data[i++] = elem;
             }
             node_inputs.emplace_back(SN->getName());
-            metawarenn::Tensor slope_tensor(SN->getName(), dims_vec, ElementType::element_type::float_, scalar_data);
+            metawarenn::Tensor slope_tensor(SN->getName(), dims_vec, Element::ElementType::kFloat, scalar_data);
             graph_->set_graph_initializers(slope_tensor);
-            graph_->initializer_names.insert(slope_tensor.get_name());
+            graph_->initializer_names_.insert(slope_tensor.get_name());
           }
           break;
         }
@@ -691,9 +693,9 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
           node_op_type = "Pad";
           auto *pad_node = llvm::cast<PadNode>(node);
           auto pads = pad_node->getPads();
-          metawarenn::Tensor pads_tensor(node_name + "_pads", std::vector<int>{(int)pads.size()}, ElementType::element_type::int64_, std::vector<int64_t>{pads[0], pads[1], pads[2], pads[3]});
+          metawarenn::Tensor pads_tensor(node_name + "_pads", std::vector<int>{(int)pads.size()}, Element::ElementType::kInt64, std::vector<int64_t>{pads[0], pads[1], pads[2], pads[3]});
           node_inputs.emplace_back(pads_tensor.get_name());
-          metawarenn::Tensor value_tensor(node_name + "_value", std::vector<int>{1}, ElementType::element_type::float_, std::vector<float>{(float)pad_node->getValue()});
+          metawarenn::Tensor value_tensor(node_name + "_value", std::vector<int>{1}, Element::ElementType::kFloat, std::vector<float>{(float)pad_node->getValue()});
           node_inputs.emplace_back(value_tensor.get_name());
           metawarenn::Attribute attr_mode("mode", int64_t(pad_node->getMode()));
           node_attributes.emplace_back(attr_mode);
@@ -738,17 +740,17 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
           auto *nms_node = llvm::cast<NonMaxSuppressionNode>(node);
           metawarenn::Attribute attr_cpb("center_point_box", (int64_t)nms_node->getCenterPointBox());
           node_attributes.emplace_back(attr_cpb);
-          metawarenn::Tensor max_out_box_tensor(node_name + "_max_out_box", std::vector<int>{1}, ElementType::element_type::float_, std::vector<float>{float(nms_node->getMaxOutputBoxesPerClass())});
+          metawarenn::Tensor max_out_box_tensor(node_name + "_max_out_box", std::vector<int>{1}, Element::ElementType::kFloat, std::vector<float>{float(nms_node->getMaxOutputBoxesPerClass())});
           graph_->set_graph_initializers(max_out_box_tensor);
-          graph_->initializer_names.insert(max_out_box_tensor.get_name());
+          graph_->initializer_names_.insert(max_out_box_tensor.get_name());
           node_inputs.emplace_back(max_out_box_tensor.get_name());
-          metawarenn::Tensor iou_thresh_tensor(node_name + "_iou_thresh", std::vector<int>{1}, ElementType::element_type::float_, std::vector<float>{nms_node->getIouThreshold()});
+          metawarenn::Tensor iou_thresh_tensor(node_name + "_iou_thresh", std::vector<int>{1}, Element::ElementType::kFloat, std::vector<float>{nms_node->getIouThreshold()});
           graph_->set_graph_initializers(iou_thresh_tensor);
-          graph_->initializer_names.insert(iou_thresh_tensor.get_name());
+          graph_->initializer_names_.insert(iou_thresh_tensor.get_name());
           node_inputs.emplace_back(iou_thresh_tensor.get_name());
-          metawarenn::Tensor score_threshold_tensor(node_name + "_score_thresh", std::vector<int>{1}, ElementType::element_type::float_, std::vector<float>{nms_node->getScoreThreshold()});
+          metawarenn::Tensor score_threshold_tensor(node_name + "_score_thresh", std::vector<int>{1}, Element::ElementType::kFloat, std::vector<float>{nms_node->getScoreThreshold()});
           graph_->set_graph_initializers(score_threshold_tensor);
-          graph_->initializer_names.insert(score_threshold_tensor.get_name());
+          graph_->initializer_names_.insert(score_threshold_tensor.get_name());
           node_inputs.emplace_back(score_threshold_tensor.get_name());
           break;
         }
@@ -814,9 +816,9 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
           int i = 0;
           for(auto scale: scales)
             scale_vec[i++] = (float)scale;
-          metawarenn::Tensor scales_tensor(node_name + "_scales", std::vector<int>{(int)scales.size()}, ElementType::element_type::float_, scale_vec);
+          metawarenn::Tensor scales_tensor(node_name + "_scales", std::vector<int>{(int)scales.size()}, Element::ElementType::kFloat, scale_vec);
           graph_->set_graph_initializers(scales_tensor);
-          graph_->initializer_names.insert(scales_tensor.get_name());
+          graph_->initializer_names_.insert(scales_tensor.get_name());
           node_inputs.emplace_back(scales_tensor.get_name());
           metawarenn::Attribute attr_trans_mode("coordinate_transformation_mode", "asymmetric");
           node_attributes.emplace_back(attr_trans_mode);
@@ -835,9 +837,9 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
           int i = 0;
           for(auto scale: scales)
             scale_vec[i++] = (float)scale;
-          metawarenn::Tensor scales_tensor(node_name + "_scales", std::vector<int>{(int)scales.size()}, ElementType::element_type::float_, scale_vec);
+          metawarenn::Tensor scales_tensor(node_name + "_scales", std::vector<int>{(int)scales.size()}, Element::ElementType::kFloat, scale_vec);
           graph_->set_graph_initializers(scales_tensor);
-          graph_->initializer_names.insert(scales_tensor.get_name());
+          graph_->initializer_names_.insert(scales_tensor.get_name());
           node_inputs.emplace_back(scales_tensor.get_name());
           metawarenn::Attribute attr_trans_mode("coordinate_transformation_mode", "asymmetric");
           node_attributes.emplace_back(attr_trans_mode);
@@ -928,9 +930,9 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
           int i = 0;
           for(auto rep: repeats_arr)
             repeats_vec[i++] = (float)rep;
-          metawarenn::Tensor repeats_tensor(node_name + "_repeats", std::vector<int>{(int)repeats_arr.size()}, ElementType::element_type::float_, repeats_vec);
+          metawarenn::Tensor repeats_tensor(node_name + "_repeats", std::vector<int>{(int)repeats_arr.size()}, Element::ElementType::kFloat, repeats_vec);
           graph_->set_graph_initializers(repeats_tensor);
-          graph_->initializer_names.insert(repeats_tensor.get_name());
+          graph_->initializer_names_.insert(repeats_tensor.get_name());
           break;
         }
         case Kinded::Kind::ConvTransposeNodeKind:
@@ -1021,6 +1023,7 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
       }
       node_index++;
     }
+
     optimizer::PassManager manager;
     if(CHW_TO_HWC)
     {
@@ -1105,13 +1108,13 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
     manager.register_pass(co);*/
     manager.run_passes();
     #if !INFERENCE_ENGINE
-    write_onnx_proto(graph_);
+    WriteONNXProto(graph_);
     #endif
 
     auto graph_ip_names = graph_->get_graph_ip_names();
     for (auto g_n : graph_->get_graph_nodes()) {
       for (auto n_ip : g_n.get_inputs()) {
-        if(!(graph_->initializer_names.count(n_ip)) && !(std::count(graph_ip_names.begin(), graph_ip_names.end(), n_ip))) {
+        if(!(graph_->initializer_names_.count(n_ip)) && !(std::count(graph_ip_names.begin(), graph_ip_names.end(), n_ip))) {
           if (graph_->get_node_producers().count(n_ip)) {
             graph_->set_node_consumer(n_ip, g_n.get_name());
           }
@@ -1327,6 +1330,7 @@ Error MetaWareNNFunction::execute(glow::ExecutionContext *context) {
 
   bool update_engine = false;
   if(dynamic_shape_) {
+    std::cout << "\n dynamic_shape_: " << dynamic_shape_;
     bool profile_file_exists = false;
     //Creates a new optimization profile for dynamic input shapes
     if(optimization_profile_ == nullptr)
@@ -1373,12 +1377,12 @@ Error MetaWareNNFunction::execute(glow::ExecutionContext *context) {
 
   for (const auto &ph : this->getOutputs()) {
     auto *tensor = bindings->get(ph);
-    graph_outputs[graph_->get_graph_op_names()[0]] = (float*)tensor->getUnsafePtr();
+    graph_outputs[ph->getName()] = (float*)tensor->getUnsafePtr();
   }
 
   if (dynamic_shape_) {
     std::cout << "\n Creating Engine, Context for Dynamic Input shapes";
-    builder_config_->AddOptimizationProfile(optimization_profile_);
+    builder_config_->add_optimization_profile(optimization_profile_);
     inference_engine_ = inference_builder_->CreateInferenceEngine(exe_graph_, builder_config_, update_engine);
     auto graph_desc = inference_engine_->GetGraphDesc();
 

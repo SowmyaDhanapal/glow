@@ -7,7 +7,6 @@
 #include "glow/Graph/NodeValue.h"
 
 #include "metawarenn_lib/metawarenn_graph.h"
-#include "metawarenn_lib/metawarenn_utils.h"
 #include "metawarenn_lib/metawarenn_element.h"
 #include "metawarenn_lib/optimizer/pass_manager.h"
 #include "metawarenn_lib/mwnnconvert/mwnn_protobuf/cpp_wrapper/MWNN.pb.h"
@@ -49,26 +48,26 @@ public:
                         const std::vector<std::string> &node_inputs_,
                         const std::vector<std::string> &node_outputs_);
   void CreateQDQNodes(std::string ip_name, std::string op_name, std::string node_name);
-  static ElementType::element_type get_mwnn_type_glow(ElemKind glow_type) {
+  static Element::ElementType get_mwnn_type_glow(ElemKind glow_type) {
       switch (glow_type) {
           case ElemKind::BoolTy:
-              return ElementType::element_type::boolean_;
+              return Element::ElementType::kBoolean;
           case ElemKind::Float16Ty:
-              return ElementType::element_type::float16_;
+              return Element::ElementType::kFloat16;
           case ElemKind::FloatTy:
-              return ElementType::element_type::float_;
+              return Element::ElementType::kFloat;
           case ElemKind::Int8QTy:
-              return ElementType::element_type::int8_;
+              return Element::ElementType::kInt8;
           case ElemKind::Int16QTy:
-              return ElementType::element_type::int16_;
+              return Element::ElementType::kInt16;
           case ElemKind::Int32QTy:
-              return ElementType::element_type::int32_;
+              return Element::ElementType::kInt32;
           case ElemKind::Int64ITy:
-              return ElementType::element_type::int64_;
+              return Element::ElementType::kInt64;
           case ElemKind::UInt8QTy:
-              return ElementType::element_type::uint8_;
+              return Element::ElementType::kUint8;
           default:
-              return ElementType::element_type::dynamic_;
+              return Element::ElementType::kDynamic;
       }
   }
 
