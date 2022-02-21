@@ -1370,7 +1370,7 @@ Error MetaWareNNFunction::execute(glow::ExecutionContext *context) {
             }
           }
         }
-        optimization_profile_->SetInputDimensions(ph->getName(), ip_shape_range_);
+        optimization_profile_->set_input_dimensions(ph->getName(), ip_shape_range_);
       }
     }
   }
@@ -1384,7 +1384,7 @@ Error MetaWareNNFunction::execute(glow::ExecutionContext *context) {
     std::cout << "\n Creating Engine, Context for Dynamic Input shapes";
     builder_config_->add_optimization_profile(optimization_profile_);
     inference_engine_ = inference_builder_->CreateInferenceEngine(exe_graph_, builder_config_, update_engine);
-    auto graph_desc = inference_engine_->GetGraphDesc();
+    auto graph_desc = inference_engine_->get_graph_desc();
 
     auto bindings = context->getPlaceholderBindings();
     // Handling for single input case
@@ -1398,14 +1398,14 @@ Error MetaWareNNFunction::execute(glow::ExecutionContext *context) {
       size = size * dim;
     }
 
-    graph_desc.UpdateInputDesc(0, size * sizeof(::metawarenn::data_type));
-    inference_engine_->SetGraphDesc(graph_desc);
+    graph_desc.UpdateInputDesc(0, size);
+    inference_engine_->set_graph_desc(graph_desc);
 
     inference_engine_->SerializeToFile();
     execution_context_ = inference_engine_->CreateExecutionContext();
   }
 
-  auto graph_desc = inference_engine_->GetGraphDesc();
+  auto graph_desc = inference_engine_->get_graph_desc();
   std::vector<float*> ip_tensors(graph_desc.input_desc.size());
   std::vector<uint32_t> ip_sizes(graph_desc.input_desc.size());
   std::vector<float*> op_tensors(graph_desc.output_desc.size());
