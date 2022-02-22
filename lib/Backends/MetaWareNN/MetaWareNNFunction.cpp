@@ -1034,7 +1034,7 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
           for (auto dim : g_t.get_dims())
             std::cout << dim << ",";*/
           optimizer::ConvertLayout cl(graph_, g_t, CHW_TO_HWC, 0, 0, false);
-          manager.register_pass(cl);
+          manager.RegisterPass(cl);
         }
       }
     }
@@ -1051,7 +1051,7 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
           for (auto dim : g_t.get_dims())
             std::cout << dim << ",";*/
           ::metawarenn::optimizer::ConvertLayout cl(graph_, g_t, 0, HWC_TO_CHW, 0, true);
-          manager.register_pass(cl);
+          manager.RegisterPass(cl);
         }
       }
       //Subgraph from other backends is already in CHW order
@@ -1063,7 +1063,7 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
             for (auto dim : g_t.get_dims())
               std::cout << dim << ",";*/
             /*::metawarenn::optimizer::ConvertLayout cl(graph_, g_t, 0, HWC_TO_CHW, 0, false);
-            manager.register_pass(cl);
+            manager.RegisterPass(cl);
           }
         }
       }*/
@@ -1075,38 +1075,38 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle, Function
       /*if(g_n.get_op_type() == "Relu") {
         optimizer::FuseRelu fr(graph_, g_n);
         //std::cout << "\n MetaWareNNCC : " << fr.get_name();
-        manager.register_pass(fr);
+        manager.RegisterPass(fr);
       }
       else*/ if((g_n.get_op_type() == "Transpose")) {
         if(remove_transpose && (transpose_removal == 0)) {
           optimizer::RemoveTranspose rt(graph_, g_n);
           //std::cout << "\n MetaWareNNCC : " << rt.get_name();
-          manager.register_pass(rt);
+          manager.RegisterPass(rt);
           transpose_removal++;
         }
         else if(g_n.get_inputs()[0] == graph_->get_graph_ip_names()[0])
         {
           optimizer::RemoveTranspose rt(graph_, g_n);
           //std::cout << "\n MetaWareNNCC : " << rt.get_name();
-          manager.register_pass(rt);
+          manager.RegisterPass(rt);
           transpose_removal++;
         }
         else if (ignored_transpose_nodes.count(g_n.get_name()))
         {
           optimizer::RemoveTranspose rt(graph_, g_n);
           //std::cout << "\n MetaWareNNCC : " << rt.get_name();
-          manager.register_pass(rt);
+          manager.RegisterPass(rt);
         }
       }
       else if(g_n.get_op_type() == "Reshape" && g_n.get_inputs()[0] == graph_->get_graph_ip_names()[0]) {
           optimizer::RemoveReshape rt(graph_, g_n);
           //std::cout << "\n MetaWareNNCC : " << rt.get_name();
-          manager.register_pass(rt);
+          manager.RegisterPass(rt);
         }
     }
     /*optimizer::CalculateOffset co(graph_);
-    manager.register_pass(co);*/
-    manager.run_passes();
+    manager.RegisterPass(co);*/
+    manager.RunPasses();
     #if !INFERENCE_ENGINE
     WriteONNXProto(graph_);
     #endif
