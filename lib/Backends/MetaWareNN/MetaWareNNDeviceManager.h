@@ -12,18 +12,20 @@ namespace metawarenn {
 
 class MetaWareNNDeviceManager : public glow::runtime::DeviceManager {
 
-public:
+ public:
   MetaWareNNDeviceManager(const glow::runtime::DeviceConfig &config);
   ~MetaWareNNDeviceManager();
-  glow::runtime::RunIdentifierTy
-  runFunction(std::string functionName,
-                                  std::unique_ptr<glow::ExecutionContext> ctx,
-                                  runtime::ResultCBTy resultCB) override;
+  // Executes the MetaWareNN graph using metawarenn function
+  glow::runtime::RunIdentifierTy runFunction(std::string functionName,
+      std::unique_ptr<glow::ExecutionContext> ctx,
+      runtime::ResultCBTy resultCB) override;
+  // Adds the MetaWareNN function containing MWNN Graph & engine info to
+  // function map
   void addNetwork(const Module *module,
-                                      glow::runtime::FunctionMapTy functions,
-                                      glow::runtime::ReadyCBTy readyCB) override;
+                  glow::runtime::FunctionMapTy functions,
+                  glow::runtime::ReadyCBTy readyCB) override;
   void evictNetwork(std::string functionName,
-                                        glow::runtime::EvictFunctionCBTy evictCB) override;
+                    glow::runtime::EvictFunctionCBTy evictCB) override;
   uint64_t getMaximumMemory() const override;
   uint64_t getAvailableMemory() const override;
   bool isMemoryAvailable(uint64_t estimate) const override;
@@ -36,8 +38,9 @@ private:
   std::unordered_map<std::string, MetaWareNNFunctionMeta> mwnn_functions_;
   static std::atomic<glow::runtime::RunIdentifierTy> runIdentifier_;
 };
-  glow::runtime::DeviceManager *createMetaWareNNDeviceManager(const glow::runtime::DeviceConfig &config);
+  glow::runtime::DeviceManager *createMetaWareNNDeviceManager(
+      const glow::runtime::DeviceConfig &config);
 
 } // namespace metawarenn
 
-#endif // GLOW_BACKENDS_HABANADEVICEMANAGER_H
+#endif  // GLOW_BACKENDS_HABANADEVICEMANAGER_H

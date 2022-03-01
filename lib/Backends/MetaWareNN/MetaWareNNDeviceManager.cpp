@@ -15,11 +15,9 @@ MetaWareNNDeviceManager::MetaWareNNDeviceManager(const DeviceConfig &config)
 
 MetaWareNNDeviceManager::~MetaWareNNDeviceManager() {}
 
-RunIdentifierTy
-MetaWareNNDeviceManager::runFunction(std::string functionName,
-                                 std::unique_ptr<glow::ExecutionContext> ctx,
-                                 runtime::ResultCBTy resultCB) {
-  //Inference Part
+RunIdentifierTy MetaWareNNDeviceManager::runFunction(std::string functionName,
+    std::unique_ptr<glow::ExecutionContext> ctx, runtime::ResultCBTy resultCB) {
+  // Inference Part
   LOG(INFO) << "runFunction!";
   RunIdentifierTy runId = runIdentifier_++;
   auto it = mwnn_functions_.find(functionName);
@@ -38,13 +36,13 @@ void MetaWareNNDeviceManager::addNetwork(const Module *module,
                                          glow::runtime::FunctionMapTy functions,
                                          glow::runtime::ReadyCBTy readyCB) {
   for (auto &func : functions) {
-    MetaWareNNFunction *mwnnFunction = static_cast<MetaWareNNFunction*>(func.second);
+    MetaWareNNFunction *mwnnFunction =
+        static_cast<MetaWareNNFunction*>(func.second);
 
     // Insert the mwnnFunction into mwnn_functions_.
     bool inserted = false;
-    std::tie(std::ignore, inserted) = mwnn_functions_.insert(std::make_pair(func.first,
-                          MetaWareNNFunctionMeta{mwnnFunction}));
-
+    std::tie(std::ignore, inserted) = mwnn_functions_.insert(
+        std::make_pair(func.first, MetaWareNNFunctionMeta{mwnnFunction}));
   }
   readyCB(module, Error::success());
 }
