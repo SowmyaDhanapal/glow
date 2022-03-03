@@ -7,6 +7,7 @@ add_library(MetaWareNN
             metawarenn_lib/metawarenn_tensor.cc
             metawarenn_lib/metawarenn_node.cc
             metawarenn_lib/metawarenn_attribute.cc
+            metawarenn_lib/optimizer/graph_transformer.cc
             metawarenn_lib/optimizer/metawarenn_optimizer.cc
             metawarenn_lib/optimizer/remove_reshape.cc
             metawarenn_lib/optimizer/fuse_relu.cc

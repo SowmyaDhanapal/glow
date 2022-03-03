@@ -3,6 +3,8 @@
 
 #include "glow/Backend/Backend.h"
 #include "MetaWareNNDeviceManager.h"
+#include "metawarenn_lib/mwnnconvert/json/include/json.hpp"
+using json = nlohmann::json;
 
 using namespace glow;
 
@@ -24,6 +26,8 @@ class MetaWareNNBackend final : public Backend {
   // Used to check if an operator is supported by MetaWareNN Backend
   bool isOpSupported(const NodeInfo &NI) const override;
   bool shouldLower(const ::glow::Node *N) const override;
+ private:
+  std::set<std::string> supported_ops_;
 };
 
 }  // namespace metawarenn
