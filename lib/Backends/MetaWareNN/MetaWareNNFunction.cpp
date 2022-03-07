@@ -73,11 +73,11 @@ void ConvertGlowToONNXOp(Function *F) {
           } else {
             R2 = F->createReshape(channel_shuffle_node->getName().str() +
                                   "_reshape2", T, inDims, T->getLayout());
-            channel_shuffle_node->getResult().replaceAllUsesOfWith(
-                R2->getResult());
-            // Remove the ChannelShuffle Node from GLOW Function
-            F->eraseNode(channel_shuffle_node);
           }
+          channel_shuffle_node->getResult().replaceAllUsesOfWith(
+              R2->getResult());
+          // Remove the ChannelShuffle Node from GLOW Function
+          F->eraseNode(channel_shuffle_node);
         }
       }
     }
@@ -204,7 +204,7 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle,
   auto node_list = visitor.getPostOrder();
   std::string global_input_name;
   std::string global_output_name = "";
-  std::set<std::string> ignored_transpose_nodes;
+  std::set<std::string> transpose_to_remove;
   int transpose_cnt = 0;
   std::set<std::string> node_inputs_map;
   std::map<std::string, std::string> quant_ip_mapper;
@@ -227,18 +227,7 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle,
     int i = 0;
     for (auto dim: glow_dims)
       dims[i++] = (int(dim));
-    // Input dims from NHWC to HCHW
-    if (size == 4) {
-      if (glow_dims[2] == glow_dims[3]) {
-        // Input already in NCHW, enable the first transpose removal
-        remove_transpose = true;
-      } else {
-        dims[1] = int(glow_dims[3]);
-        dims[3] = int(glow_dims[1]);
-        dims[2] = int(glow_dims[2]);
-        dims[0] = int(glow_dims[0]);
-      }
-    }
+
     if (auto *save = getOutputSave(F, V)) {
       std::string output_name = save->getInput().getNode()->getName();
       if (V->getElementType() == ElemKind::Int8QTy ||
@@ -455,9 +444,9 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle,
         Transpose -> Reshape order.
         If not, ignore the Transpose node to maintain the NCHW order*/
         if (!(llvm::dyn_cast<ReshapeNode>(input) &&
-              node_list[node_index+1]->getKindName() == "Reshape")) {
-          ignored_transpose_nodes.insert(node_name);
-          std::cout << "\nignored_transpose_node: " << node_name;
+            node_list[node_index+1]->getKindName() == "Reshape")) {
+          transpose_to_remove.insert(node_name);
+          std::cout << "\n transpose node to be removed: " << node_name;
         }
         transpose_cnt++;
         break;
@@ -1055,88 +1044,10 @@ MetaWareNNFunction::MetaWareNNFunction(runtime::RuntimeBundle &&bundle,
     node_index++;
   }
 
-  optimizer::PassManager manager;
-  if (CHW_TO_HWC)
-  {
-    for (auto g_t : graph_->get_graph_ip_tensor()) {
-      if (g_t.get_dims().size() == 4) {
-        /*std::cout << "\n Name : " << g_t.get_name();
-        std::cout << "\t Dims : ";
-        for (auto dim : g_t.get_dims())
-          std::cout << dim << ",";*/
-        optimizer::ConvertLayout cl(graph_, g_t, CHW_TO_HWC, 0, 0, false);
-        manager.RegisterPass(cl);
-      }
-    }
-  }
-  std::cout << "\nremove_transpose : " << remove_transpose;
-  if (HWC_TO_CHW)
-  {
-    for (auto g_t : graph_->get_graph_initializers()) {
-      auto dims = g_t.get_dims();
-      if (g_t.get_dims().size() == 4) {
-        if (remove_transpose && node_inputs_map.count(g_t.get_name()))
-          continue;
-        /*std::cout << "\n Name : " << g_t.get_name();
-        std::cout << "\t Dims : ";
-        for (auto dim : g_t.get_dims())
-          std::cout << dim << ",";*/
-        ::metawarenn::optimizer::ConvertLayout cl(graph_, g_t, 0, HWC_TO_CHW,
-                                                  0, true);
-        manager.RegisterPass(cl);
-      }
-    }
-    //Subgraph from other backends is already in CHW order
-    /*if (graph_count == 1) {
-      for (auto g_t : graph_->get_graph_ip_tensor()) {
-        if (g_t.get_dims().size() == 4) {
-          /*std::cout << "\n Name : " << g_t.get_name();
-          std::cout << "\t Dims : ";
-          for (auto dim : g_t.get_dims())
-            std::cout << dim << ",";*/
-          /*::metawarenn::optimizer::ConvertLayout cl(graph_, g_t, 0, HWC_TO_CHW, 0, false);
-          manager.RegisterPass(cl);
-        }
-      }
-    }*/
-  }
-  auto m_nodes = graph_->get_graph_nodes();
-  int transpose_removal = 0;
-  for (int node_idx = 0; node_idx < graph_->get_graph_nodes().size();
-                                                          node_idx++) {
-    auto g_n = m_nodes[node_idx];
-    /*if (g_n.get_op_type() == "Relu") {
-      optimizer::FuseRelu fr(graph_, g_n);
-      //std::cout << "\n MetaWareNNCC : " << fr.get_name();
-      manager.RegisterPass(fr);
-    }
-    else*/ if ((g_n.get_op_type() == "Transpose")) {
-      if (remove_transpose && (transpose_removal == 0)) {
-        optimizer::RemoveTranspose rt(graph_, g_n);
-        //std::cout << "\n MetaWareNNCC : " << rt.get_name();
-        manager.RegisterPass(rt);
-        transpose_removal++;
-      } else if (g_n.get_inputs()[0] ==
-                      graph_->get_graph_ip_names()[0]) {
-        optimizer::RemoveTranspose rt(graph_, g_n);
-        //std::cout << "\n MetaWareNNCC : " << rt.get_name();
-        manager.RegisterPass(rt);
-        transpose_removal++;
-      } else if (ignored_transpose_nodes.count(g_n.get_name())) {
-        optimizer::RemoveTranspose rt(graph_, g_n);
-        //std::cout << "\n MetaWareNNCC : " << rt.get_name();
-        manager.RegisterPass(rt);
-      }
-    } else if (g_n.get_op_type() == "Reshape" &&
-             g_n.get_inputs()[0] == graph_->get_graph_ip_names()[0]) {
-      optimizer::RemoveReshape rt(graph_, g_n);
-      //std::cout << "\n MetaWareNNCC : " << rt.get_name();
-      manager.RegisterPass(rt);
-    }
-  }
-  /*optimizer::CalculateOffset co(graph_);
-  manager.RegisterPass(co);*/
-  manager.RunPasses();
+  ::metawarenn::optimizer::NNOptimizer nn_optimizer(graph_);
+  nn_optimizer.enable_hwc_to_chw_conversion();
+  nn_optimizer.enable_transpose_removal(transpose_to_remove);
+  nn_optimizer.TransformGraphLayout();
   #if !INFERENCE_ENGINE
   WriteONNXProto(graph_);
   #endif

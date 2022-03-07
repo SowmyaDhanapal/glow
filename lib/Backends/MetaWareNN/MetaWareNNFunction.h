@@ -9,6 +9,7 @@
 #include "metawarenn_lib/metawarenn_graph.h"
 #include "metawarenn_lib/metawarenn_element.h"
 #include "metawarenn_lib/optimizer/pass_manager.h"
+#include "metawarenn_lib/optimizer/metawarenn_optimizer.h"
 #include "metawarenn_lib/mwnnconvert/mwnn_protobuf/cpp_wrapper/MWNN.pb.h"
 #include "metawarenn_lib/executable_network/metawarenn_executable_graph.h"
 #include "metawarenn_lib/mwnnconvert/mwnn_to_onnx_proto.h"
