@@ -1271,7 +1271,7 @@ Error MetaWareNNFunction::execute(glow::ExecutionContext *context) {
 
   // ************* Call to invoke the local run function ***************
 
-  //convert_to_mwnn_format(*graph_, graph_inputs, graph_outputs, CHW_TO_HWC);
+  //convert_to_mwnn_format(*graph_, graph_inputs, graph_outputs, 0);
   return Error::success();
 }
 } // namespace metawarenn

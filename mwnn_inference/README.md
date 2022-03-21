@@ -1,7 +1,7 @@
 # Steps to Build & Run GLOW MetaWareNN Backend
 
 ## Use Docker Setup to build and run the Glow
-##### Check on the [/glow/lib/Backends/MetaWareNN/Docker/README.md](https://github.com/SowmyaDhanapal/glow/blob/metawarenn_dev/lib/Backends/MetaWareNN/Docker/README.md)
+##### Check on the [/glow/mwnn_inference/Docker/README.md](https://github.com/SowmyaDhanapal/glow/blob/metawarenn_dev/mwnn_inference/Docker/README.md)
 
 ## No Docker Process
 ### Get Glow
@@ -9,20 +9,17 @@
     1. `git clone --recursive https://github.com/SowmyaDhanapal/glow.git`
     2. `cd glow`
     3. `git checkout metawarenn_dev` (Created metawarenn_dev branch from this master branch commit - 916b8914e0585c220b6186a241db0845c8eff5a9)
-    4. `git submodule update --init --recursive`
-    5. In case if glow is cloned without metawarenn_lib submodule, use below commands to pull MetaWareNN Library Submodule for the first time
-        i.  `git pull`
-        ii. `git submodule update --init --recursive`
-        iii. Move to metawarenn_lib submodule and checkout to metawarenn_dev branch
+    4. Use below commands to pull MetaWareNN Library Submodule
+       i. `git submodule update --init --recursive`
+       ii. Move to metawarenn_lib submodule and checkout to onnx_conversion branch
             a. `cd lib/Backends/MetaWareNN/metawarenn_lib`
-            b. `git checkout metawarenn_dev`
+            b. `git checkout onnx_conversion`
 
 ### Using Existing Setup to pull submodule changes [Docker / Non-Docker]
-    1. `cd glow`
-    2. `git pull`
-    3. `cd lib/Backends/MetaWareNN/metawarenn_lib`
-    4. `git checkout metawarenn_dev`
-    5. `git pull`
+    1. `cd glow && git pull`
+    2. `cd lib/Backends/MetaWareNN/metawarenn_lib`
+    3. `git checkout onnx_conversion`
+    4. `git pull`
 
 ### Create a Python Virtual Environment
 1. `sudo pip3 install virtualenv`
@@ -89,29 +86,25 @@
     libjemalloc-dev libpthread-stubs0-dev
   ```
 * #### Download & store the protobuf file
-  ```
    1. Download the dependent protobuf library from egnyte link https://multicorewareinc.egnyte.com/dl/kpRzPTSFdx and place it in `glow/lib/Backends/MetaWareNN/metawarenn_lib/lib`
-  ```
-* #### To Load MetaWareNN Executable Graph in Shared Memory [Default flow]
-  ```
-   1. Set the absolute path to glow in glow/mwnn_inference/env.sh line no: 5
-  ```
-* #### To Invoke the NNAC & EVGENCNN Script to generate the EV Binary file
-  ```
-   1. Enable the `INVOKE_NNAC` macro in glow/lib/Backends/MetaWareNN/MetaWareNNFunction.h line no: 19
+
+* #### To create ONNX Proto from MWNNGraph [Default flow]
+   1. By default, `INFERENCE_ENGINE` flag is set to zero in metawarenn_lib/metawarenn_common.h, which will create ONNXProto directly from MWNNGraph and store it in inference/op_onnx_models
+   2. Enable `INFERENCE_ENGINE` flag in metawarenn_lib/metawarenn_common.h, to convert MWNNGraph to ExecutableGraph and then create Inference Engine & Execution Context and finally creates the output ONNXProto in inference/op_onnx_models
+* #### To Invoke the NNAC & EVGENCNN Script to generate the EV Binary file - Outdated [Not tested after MWNNGraph update to ONNX format]
+   1. Enable the `INVOKE_NNAC` macro in glow/lib/Backends/MetaWareNN/MetaWareNNFunction.h line no: 23
    2. Set the absolute path to ARC/ directory in glow/mwnn_inference/env.sh line no: 11
    3. Set the absolute path to cnn_models/ directory in glow/mwnn_inference/env.sh line no: 12
+  ```
    [Note] : Generated EV Binary file for MetaWareNN SubGraph will be stored in evgencnn/scripts folder and all intermediate files will get stored in `/path/to/glow/NNAC_DUMPS` folder
   ```
-* #### To use metawarenn_lib as shared library
-  ```
+* #### To use metawarenn_lib as shared library - Outdated
    1. Rename lib/Backends/MetaWareNN/CMakeLists.txt to CMakeLists_original.txt
       `mv lib/Backends/MetaWareNN/CMakeLists.txt lib/Backends/MetaWareNN/CMakeLists_original.txt`
    2. Rename lib/Backends/MetaWareNN/CMakeLists_shared_lib.txt to CMakeLists.txt
       `mv lib/Backends/MetaWareNN/CMakeLists_shared_lib.txt lib/Backends/MetaWareNN/CMakeLists.txt`
    3. Download the metawarenn shared library from egnyte link https://multicorewareinc.egnyte.com/dl/n31afFTwP9 and place it in `glow/lib/Backends/MetaWareNN/metawarenn_lib/lib`
    4. Also download the dependent protobuf library from egnyte link https://multicorewareinc.egnyte.com/dl/kpRzPTSFdx and place it in `glow/lib/Backends/MetaWareNN/metawarenn_lib/lib`
-  ```
 
 ### Configure and Build Glow
 * #### For Release Build
@@ -119,11 +112,6 @@
     * `cd build_Release`
     * `cmake -G Ninja -DCMAKE_BUILD_TYPE=Release ../../glow -DLLVM_DIR=/path/to/glow/llvm_install/lib/cmake/llvm`
     * `ninja all`
-* #### For Debug Build
-    *  `mkdir build_Debug`
-    *  `cd build_Debug`
-    *  `cmake -G Ninja -DCMAKE_BUILD_TYPE=Debug ../../glow -DLLVM_DIR=/path/to/glow/llvm_install/lib/cmake/llvm`
-    *  `ninja all`
 
 ### To Run Inference using MetaWareNN Backend
 * Download the MobileNet-V2 model using the zip file from egnyte link - https://multicorewareinc.egnyte.com/dl/2JAUNXlGg0 and unzip the same
@@ -134,15 +122,6 @@
 ### To run subgraphs with AvgPool Unsupported node
 * `./image-classifier ../../tests/images/imagenet/dog_207.png -image-mode=0to1 -m=/path/to/mobilenetv2-7.onnx -model-input-name=data -cpu-memory=100000 -load-device-configs="../../mwnn_inference/heterogeneousConfigs.yaml"`
 
-## To run multiple ONNX models from model zoo
-* `cd /path/to/glow/mwnn_inference`
-* `source env.sh`
-* Download the models from ONNX model zoo by running the below shell script.
-(This script will create a folder `onnx_models` inside glow/ directory and download models into it.)
-    *   `sh download_ONNX_models.sh`
-* Run the ONNX models from model zoo in metawarenn backend with below command
-    *   `python inference_regression.py`
-
 ## To generate ONNX Proto for multiple ONNX models and verify it with original ONNX models
 * `cd /path/to/glow/mwnn_inference`
 * `source env.sh`
@@ -150,7 +129,7 @@
 (This script will create a folder `onnx_models` inside glow/ directory and download models into it.)
     *   `sh download_ONNX_models.sh`
 * Run the ONNX models from model zoo in metawarenn backend with below command
-    *   `python validate_onnx_models.py` - Dumps the generated ONNX protos & validation_result.txt(contains output comparison from generated and original ONNX model) in `mwnn_inference/op_onnx_models` directory.
+    *   `python test_regression_onnx.py` - Dumps the generated ONNX protos & validation_result.txt(contains output comparison from generated and original ONNX model) in `mwnn_inference/op_onnx_models` directory.
 NOTE: Install the following pip packages for verification of ONNX models
 * `pip install onnx` current version - 1.10.2
 * `pip install onnxruntime` current version - 1.9.0
@@ -163,8 +142,8 @@ NOTE: Install the following pip packages for verification of ONNX models
 (This script will create a folder `tflite_quantized_models` inside glow/ directory and download models into it.)
     *   `sh download_quantized_tflite_models.sh`
 * Run the Quantized TFLite models from model zoo in metawarenn backend with below command
-    *   `python validate_quantized_tflite_models.py` - Dumps the generated ONNX protos & validation_result.txt(contains output comparison from generated and original TFLite models) in `mwnn_inference/op_tflite_quantized_models` directory.
-NOTE: Install the following pip packages for verification of ONNX models
+    *   `python test_regression_quantized_tflite.py` - Dumps the generated ONNX protos & validation_result.txt(contains output comparison from generated and original TFLite models) in `mwnn_inference/op_tflite_quantized_models` directory.
+NOTE: Install the following pip packages for verification of ONNX models generated from TFLite models
 * `pip install onnx` current version - 1.10.2
 * `pip install onnxruntime` current version - 1.9.0
 * `pip install Pillow` current version - 8.4.0
@@ -172,8 +151,8 @@ NOTE: Install the following pip packages for verification of ONNX models
 * `pip install decorator` current version - 5.1.0
 * `pip install scipy` current version - 1.5.4
 
-### To Run Standalone Inference using MetaWareNN Backend (deprecated)
-* `cd /path/to/glow/lib/Backends/MetaWareNN/Inference`
-* Download GLOW libraries from this link -> https://multicorewareinc.egnyte.com/dl/ffpW2aAaUm/? and place it in /path/to/glow/lib/Backends/MetaWareNN/Inference folder
+### To Run Standalone Inference using MetaWareNN Backend [Deprecated]
+* `cd /path/to/glow/mwnn_inference/standalone_inference`
+* Download GLOW libraries from this link -> https://multicorewareinc.egnyte.com/dl/ffpW2aAaUm/? and place it in /path/to/glow/mwnn_inference/standalone_inference folder
 * `sh run_inference.sh`
 * `./inference ../../../../tests/images/imagenet/cat_285.png -m=/path/to/mobilenetv2-7.onnx -model-input-name=data -backend=MetaWareNN`
