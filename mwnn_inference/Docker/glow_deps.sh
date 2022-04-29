@@ -53,7 +53,7 @@ cd glow
 git checkout metawarenn_dev
 git submodule update --init --recursive
 cd lib/Backends/MetaWareNN/metawarenn_lib
-git checkout metawarenn_dev
+git checkout onnx_conversion
 cd ../../../..
 source ./utils/build_llvm.sh
 apt install -y clang-6.0

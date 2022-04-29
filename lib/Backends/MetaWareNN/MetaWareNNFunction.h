@@ -20,8 +20,6 @@
 
 #include <fcntl.h>
 
-#define CHW_TO_HWC 0
-#define HWC_TO_CHW 1
 #define INVOKE_NNAC 0
 
 using namespace glow;

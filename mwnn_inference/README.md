@@ -91,14 +91,14 @@
 * #### To create ONNX Proto from MWNNGraph [Default flow]
    1. By default, `INFERENCE_ENGINE` flag is set to zero in metawarenn_lib/metawarenn_common.h, which will create ONNXProto directly from MWNNGraph and store it in inference/op_onnx_models
    2. Enable `INFERENCE_ENGINE` flag in metawarenn_lib/metawarenn_common.h, to convert MWNNGraph to ExecutableGraph and then create Inference Engine & Execution Context and finally creates the output ONNXProto in inference/op_onnx_models
-* #### To Invoke the NNAC & EVGENCNN Script to generate the EV Binary file - Outdated [Not tested after MWNNGraph update to ONNX format]
+* #### To Invoke the NNAC & EVGENCNN Script to generate the EV Binary file - Outdated & Optional [Not tested after MWNNGraph update to ONNX format]
    1. Enable the `INVOKE_NNAC` macro in glow/lib/Backends/MetaWareNN/MetaWareNNFunction.h line no: 23
    2. Set the absolute path to ARC/ directory in glow/mwnn_inference/env.sh line no: 11
    3. Set the absolute path to cnn_models/ directory in glow/mwnn_inference/env.sh line no: 12
   ```
    [Note] : Generated EV Binary file for MetaWareNN SubGraph will be stored in evgencnn/scripts folder and all intermediate files will get stored in `/path/to/glow/NNAC_DUMPS` folder
   ```
-* #### To use metawarenn_lib as shared library - Outdated
+* #### To use metawarenn_lib as shared library - Outdated & Optional
    1. Rename lib/Backends/MetaWareNN/CMakeLists.txt to CMakeLists_original.txt
       `mv lib/Backends/MetaWareNN/CMakeLists.txt lib/Backends/MetaWareNN/CMakeLists_original.txt`
    2. Rename lib/Backends/MetaWareNN/CMakeLists_shared_lib.txt to CMakeLists.txt
@@ -122,10 +122,10 @@
 ### To run subgraphs with AvgPool Unsupported node
 * `./image-classifier ../../tests/images/imagenet/dog_207.png -image-mode=0to1 -m=/path/to/mobilenetv2-7.onnx -model-input-name=data -cpu-memory=100000 -load-device-configs="../../mwnn_inference/heterogeneousConfigs.yaml"`
 
-## To generate ONNX Proto for multiple ONNX models and verify it with original ONNX models
+## To generate ONNX Proto for multiple Float ONNX models and verify it with original ONNX models
 * `cd /path/to/glow/mwnn_inference`
 * `source env.sh`
-* Download the models from ONNX model zoo by running the below shell script.
+* Download the models from ONNX model zoo by running the below shell script or Download from Egnyte link - https://multicorewareinc.egnyte.com/fl/1hIpgufAHp
 (This script will create a folder `onnx_models` inside glow/ directory and download models into it.)
     *   `sh download_ONNX_models.sh`
 * Run the ONNX models from model zoo in metawarenn backend with below command
@@ -138,7 +138,7 @@ NOTE: Install the following pip packages for verification of ONNX models
 ## To generate ONNX Proto for multiple TFLite quantized models and verify it with original TFlite quantized models
 * `cd /path/to/glow/mwnn_inference`
 * `source env.sh`
-* Download the Quantized TFLite models from zoo by running the below shell script.
+* Download the Quantized TFLite models from zoo by running the below shell script or Download Quantized TFLite Models from Egnyte Link - https://multicorewareinc.egnyte.com/fl/7uaWWI9PNi
 (This script will create a folder `tflite_quantized_models` inside glow/ directory and download models into it.)
     *   `sh download_quantized_tflite_models.sh`
 * Run the Quantized TFLite models from model zoo in metawarenn backend with below command
